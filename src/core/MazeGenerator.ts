@@ -27,6 +27,8 @@ export class MazeGenerator {
     private height: number;
     private cells: MazeCell[][];
     private rooms: Room[] = [];
+    private spawnPosition: THREE.Vector3 | null = null;
+    private exitPosition: THREE.Vector3 | null = null;
 
     // Generation parameters
     private readonly roomAttempts = 15;
@@ -637,11 +639,70 @@ export class MazeGenerator {
             const randomCell = spawnCells[Math.floor(Math.random() * spawnCells.length)];
             const worldX = (randomCell.x - this.width / 2) * this.cellSize;
             const worldZ = (randomCell.z - this.height / 2) * this.cellSize;
-            return new THREE.Vector3(worldX, 1.6, worldZ); // Player eye height
+            this.spawnPosition = new THREE.Vector3(worldX, 1.6, worldZ); // Store spawn position
+            return this.spawnPosition;
         }
 
         // Fallback to center
-        return new THREE.Vector3(0, 1.6, 0);
+        this.spawnPosition = new THREE.Vector3(0, 1.6, 0);
+        return this.spawnPosition;
+    }
+
+    public selectExitPoint(): THREE.Vector3 {
+        if (!this.spawnPosition) {
+            throw new Error('Spawn position must be set before selecting exit point');
+        }
+
+        // Get all available rooms and floor cells
+        let exitCandidates: { cell: MazeCell, distance: number }[] = [];
+
+        // Collect all room cells and calculate distance from spawn
+        for (let x = 0; x < this.width; x++) {
+            for (let z = 0; z < this.height; z++) {
+                if (this.cells[x][z].type === 'room') {
+                    const worldX = (x - this.width / 2) * this.cellSize;
+                    const worldZ = (z - this.height / 2) * this.cellSize;
+                    const distance = this.spawnPosition.distanceTo(new THREE.Vector3(worldX, 1.6, worldZ));
+                    exitCandidates.push({ cell: this.cells[x][z], distance });
+                }
+            }
+        }
+
+        // If no rooms, use floor cells
+        if (exitCandidates.length === 0) {
+            for (let x = 0; x < this.width; x++) {
+                for (let z = 0; z < this.height; z++) {
+                    if (this.cells[x][z].type === 'floor') {
+                        const worldX = (x - this.width / 2) * this.cellSize;
+                        const worldZ = (z - this.height / 2) * this.cellSize;
+                        const distance = this.spawnPosition.distanceTo(new THREE.Vector3(worldX, 1.6, worldZ));
+                        exitCandidates.push({ cell: this.cells[x][z], distance });
+                    }
+                }
+            }
+        }
+
+        if (exitCandidates.length > 0) {
+            // Sort by distance (farthest first)
+            exitCandidates.sort((a, b) => b.distance - a.distance);
+
+            // Select from the farthest 25% of candidates to ensure good distance but some randomness
+            const topCandidates = exitCandidates.slice(0, Math.max(1, Math.floor(exitCandidates.length * 0.25)));
+            const selectedCandidate = topCandidates[Math.floor(Math.random() * topCandidates.length)];
+
+            const worldX = (selectedCandidate.cell.x - this.width / 2) * this.cellSize;
+            const worldZ = (selectedCandidate.cell.z - this.height / 2) * this.cellSize;
+            this.exitPosition = new THREE.Vector3(worldX, 1.6, worldZ);
+
+            console.log(`🚪 Exit point selected at distance ${selectedCandidate.distance.toFixed(1)} from spawn`);
+            return this.exitPosition;
+        }
+
+        // Fallback - select opposite corner from spawn
+        const fallbackX = this.spawnPosition.x > 0 ? -this.width * this.cellSize / 4 : this.width * this.cellSize / 4;
+        const fallbackZ = this.spawnPosition.z > 0 ? -this.height * this.cellSize / 4 : this.height * this.cellSize / 4;
+        this.exitPosition = new THREE.Vector3(fallbackX, 1.6, fallbackZ);
+        return this.exitPosition;
     }
 
     public getCells(): MazeCell[][] {
@@ -654,5 +715,75 @@ export class MazeGenerator {
 
     public getDimensions(): { width: number; height: number; cellSize: number } {
         return { width: this.width, height: this.height, cellSize: this.cellSize };
+    }
+
+    public addStartAndExitLights(scene: THREE.Scene): { startLight: THREE.PointLight, exitLight: THREE.PointLight } {
+        if (!this.spawnPosition || !this.exitPosition) {
+            throw new Error('Both spawn and exit positions must be set before adding lights');
+        }
+
+        // Create blue light at start position
+        const startLight = new THREE.PointLight(0x0088ff, 1.5, 8); // Bright blue
+        startLight.position.set(
+            this.spawnPosition.x,
+            this.wallHeight - 0.3, // Just below ceiling
+            this.spawnPosition.z
+        );
+        startLight.castShadow = true;
+        startLight.shadow.mapSize.width = 512;
+        startLight.shadow.mapSize.height = 512;
+        scene.add(startLight);
+
+        // Create red light at exit position
+        const exitLight = new THREE.PointLight(0xff0044, 1.5, 8); // Bright red
+        exitLight.position.set(
+            this.exitPosition.x,
+            this.wallHeight - 0.3, // Just below ceiling
+            this.exitPosition.z
+        );
+        exitLight.castShadow = true;
+        exitLight.shadow.mapSize.width = 512;
+        exitLight.shadow.mapSize.height = 512;
+        scene.add(exitLight);
+
+        // Add pulsing effect to both lights
+        this.addLightPulsingEffect(startLight, exitLight);
+
+        console.log('💡 Added blue start light and red exit light');
+        return { startLight, exitLight };
+    }
+
+    private addLightPulsingEffect(startLight: THREE.PointLight, exitLight: THREE.PointLight): void {
+        const originalStartIntensity = startLight.intensity;
+        const originalExitIntensity = exitLight.intensity;
+
+        const animate = () => {
+            const time = Date.now() * 0.003; // Slower pulsing
+
+            // Pulse start light (blue)
+            startLight.intensity = originalStartIntensity + Math.sin(time) * 0.3;
+
+            // Pulse exit light (red) with different phase
+            exitLight.intensity = originalExitIntensity + Math.sin(time + Math.PI) * 0.3;
+
+            requestAnimationFrame(animate);
+        };
+
+        animate();
+    }
+
+    public getSpawnPosition(): THREE.Vector3 | null {
+        return this.spawnPosition;
+    }
+
+    public getExitPosition(): THREE.Vector3 | null {
+        return this.exitPosition;
+    }
+
+    public checkPlayerAtExit(playerPosition: THREE.Vector3, threshold: number = 2.0): boolean {
+        if (!this.exitPosition) return false;
+
+        const distance = playerPosition.distanceTo(this.exitPosition);
+        return distance <= threshold;
     }
 }

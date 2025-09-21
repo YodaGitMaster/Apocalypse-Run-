@@ -28,3 +28,10 @@
 - **Root Cause**: Missing WebGPU TypeScript type definitions prevented compilation
 - **Solution**: Added `@webgpu/types` to tsconfig.json and fixed Vec3 type annotations
 - **Lesson**: Always check TypeScript compilation errors before debugging complex graphics issues
+
+## Exit Point System Implementation (2025-09-21)
+- **Algorithm**: Distance-based selection from farthest 25% of spawn candidates
+- **Visual Cues**: Blue pulsing light at spawn, red pulsing light at exit
+- **Game Flow**: Automatic detection within 2.0 units, overlay restart screen
+- **Performance**: Pulsing lights use requestAnimationFrame for smooth animation
+- **UX**: Click-to-restart keeps gameplay flow smooth and intuitive

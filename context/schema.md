@@ -43,7 +43,37 @@ interface GPUContext {
 }
 ```
 
+### Maze System Types
+```typescript
+interface MazeCell {
+  x: number
+  z: number
+  type: 'wall' | 'floor' | 'room'
+  visited: boolean
+  walls: { north: boolean, south: boolean, east: boolean, west: boolean }
+}
+
+interface Room {
+  x: number, z: number
+  width: number, height: number
+  centerX: number, centerZ: number
+}
+```
+
+### Exit Point System
+```typescript
+interface ExitPointData {
+  spawnPosition: THREE.Vector3 | null
+  exitPosition: THREE.Vector3 | null
+  startLight: THREE.PointLight    // Blue pulsing light at spawn
+  exitLight: THREE.PointLight     // Red pulsing light at exit
+  gameOver: boolean
+}
+```
+
 ## Current WebGL2 Implementation
 - Vertex format: position(3) + normal(3) + color(3) = 9 floats/vertex
 - Uniform: ViewProjection matrix + Model matrix
 - Simple Lambert lighting in fragment shader
+- Exit detection: 2.0 unit radius collision check
+- Light animation: requestAnimationFrame pulsing at 0.003 time factor

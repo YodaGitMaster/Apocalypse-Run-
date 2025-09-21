@@ -22,6 +22,7 @@ export class Game {
 
     private isRunning = false;
     private lastTime = 0;
+    private gameOver = false;
 
     constructor() {
         console.log('🎮 Game instance created');
@@ -69,6 +70,9 @@ export class Game {
         const spawnPosition = this.mazeGenerator.getRandomSpawnPosition();
         this.camera.position.copy(spawnPosition);
 
+        // Select exit point (must be done after spawn position is set)
+        this.mazeGenerator.selectExitPoint();
+
         // Add direction arrow to scene
         this.scene.add(this.playerController.getDirectionArrow());
 
@@ -95,7 +99,10 @@ export class Game {
         // Add artificial lighting throughout the maze
         this.mazeGenerator.addArtificialLighting(this.scene);
 
-        console.log('🏗️ Enclosed maze scene created with artificial lighting');
+        // Add start (blue) and exit (red) lights
+        this.mazeGenerator.addStartAndExitLights(this.scene);
+
+        console.log('🏗️ Enclosed maze scene created with artificial lighting and start/exit lights');
     }
 
     private setupEventListeners(): void {
@@ -147,11 +154,16 @@ export class Game {
     };
 
     private update(deltaTime: number): void {
+        if (this.gameOver) return;
+
         // Update input
         this.inputManager.update();
 
         // Update player controller (handles camera and movement)
         this.playerController.update(deltaTime);
+
+        // Check for game over condition (player reached exit)
+        this.checkGameOver();
 
         // Update physics
         this.physicsWorld.update(deltaTime);
@@ -161,6 +173,87 @@ export class Game {
 
         // Update HUD
         this.updateHUD();
+    }
+
+    private checkGameOver(): void {
+        const playerPosition = this.playerController.getPosition();
+        if (this.mazeGenerator.checkPlayerAtExit(playerPosition)) {
+            this.gameOver = true;
+            this.showGameOverScreen();
+        }
+    }
+
+    private showGameOverScreen(): void {
+        // Create game over overlay
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.style.color = 'white';
+        overlay.style.fontSize = '2rem';
+        overlay.style.fontFamily = 'Arial, sans-serif';
+        overlay.style.zIndex = '1000';
+        overlay.style.cursor = 'pointer';
+
+        const title = document.createElement('h1');
+        title.textContent = '🎉 MAZE COMPLETED! 🎉';
+        title.style.color = '#00ff88';
+        title.style.marginBottom = '20px';
+        title.style.textAlign = 'center';
+
+        const instruction = document.createElement('p');
+        instruction.textContent = 'Click to restart';
+        instruction.style.color = '#ffffff';
+        instruction.style.fontSize = '1.2rem';
+
+        overlay.appendChild(title);
+        overlay.appendChild(instruction);
+
+        // Add click handler to restart game
+        overlay.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            this.restartGame();
+        });
+
+        document.body.appendChild(overlay);
+
+        // Release pointer lock
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+
+        console.log('🎉 Game Over - Player reached the exit!');
+    }
+
+    private restartGame(): void {
+        // Reset game state
+        this.gameOver = false;
+
+        // Regenerate maze
+        this.mazeGenerator.generateMaze();
+
+        // Get new spawn position and move player
+        const spawnPosition = this.mazeGenerator.getRandomSpawnPosition();
+        this.camera.position.copy(spawnPosition);
+
+        // Select new exit point
+        this.mazeGenerator.selectExitPoint();
+
+        // Clear and recreate scene
+        this.scene.clear();
+        this.createMazeScene();
+
+        // Re-add direction arrow
+        this.scene.add(this.playerController.getDirectionArrow());
+
+        console.log('🔄 Game restarted with new maze');
     }
 
     private updateHUD(): void {
