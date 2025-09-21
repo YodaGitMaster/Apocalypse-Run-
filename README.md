@@ -1,4 +1,4 @@
-# Apocalypse Run
+# Liminal
 
 A modern 3D first-person shooter game built with TypeScript, Three.js, and Rapier3D physics engine. This project implements an Entity Component System (ECS) architecture for optimal performance and maintainability.
 
@@ -192,5 +192,6 @@ This software is proprietary and confidential. Unauthorized reproduction, distri
 - [Vite Documentation](https://vitejs.dev/guide/)
 
 ---
+
 
 **Note**: This project is under active development. Features and APIs may change between versions.
