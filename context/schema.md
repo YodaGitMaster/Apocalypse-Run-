@@ -88,6 +88,24 @@ interface LootboxStats {
 }
 ```
 
+### Power Management System
+```typescript
+interface PowerConsumer {
+  id: string
+  light: THREE.Light
+  baseIntensity: number
+  consumptionRate: number  // Power units per second
+  priority: number        // Higher priority lights stay on longer (1-5)
+}
+
+interface PowerStats {
+  currentPower: number
+  maxPower: number
+  consumptionRate: number
+  timeRemaining: number   // Estimated seconds until blackout
+}
+```
+
 ## Current WebGL2 Implementation
 - Vertex format: position(3) + normal(3) + color(3) = 9 floats/vertex
 - Uniform: ViewProjection matrix + Model matrix

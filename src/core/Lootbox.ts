@@ -249,6 +249,10 @@ export class Lootbox {
         return this.particles;
     }
 
+    public getRarity(): string {
+        return this.data.rarity;
+    }
+
     public getData(): LootboxData {
         return { ...this.data };
     }

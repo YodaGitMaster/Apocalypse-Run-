@@ -1,17 +1,29 @@
 import * as THREE from 'three';
+import { AudioManager } from './AudioManager';
 import { Lootbox, LootboxData } from './Lootbox';
-import { MazeGenerator } from './MazeGenerator';
+import { MazeCell, MazeGenerator } from './MazeGenerator';
+import { NavigationBox, NavigationBoxData } from './NavigationBox';
+import { NavigationLine } from './NavigationLine';
+import { PowerManager } from './PowerManager';
 
 export class LootboxManager {
     private lootboxes: Map<string, Lootbox> = new Map();
+    private navigationBoxes: Map<string, NavigationBox> = new Map();
+    private navigationLines: NavigationLine[] = [];
     private scene: THREE.Scene;
     private mazeGenerator: MazeGenerator;
+    private powerManager: PowerManager;
+    private audioManager: AudioManager;
     private totalPoints: number = 0;
     private collectedCount: number = 0;
 
-    // Lootbox spawn parameters
+    // Lootbox spawn parameters (increased for more collection opportunities)
     private readonly maxLootboxes = 15;
-    private readonly minLootboxes = 8;
+    private readonly minLootboxes = 10;
+
+    // Navigation box parameters
+    private readonly maxNavigationBoxes = 3;
+    private readonly navigationBoxSpacing = 15.0; // Minimum distance from other boxes
     private readonly rarityWeights = {
         common: 0.5,    // 50% chance
         rare: 0.3,      // 30% chance  
@@ -19,9 +31,11 @@ export class LootboxManager {
         legendary: 0.05 // 5% chance
     };
 
-    constructor(scene: THREE.Scene, mazeGenerator: MazeGenerator) {
+    constructor(scene: THREE.Scene, mazeGenerator: MazeGenerator, powerManager: PowerManager, audioManager: AudioManager) {
         this.scene = scene;
         this.mazeGenerator = mazeGenerator;
+        this.powerManager = powerManager;
+        this.audioManager = audioManager;
     }
 
     public spawnLootboxes(): void {
@@ -58,7 +72,10 @@ export class LootboxManager {
             }
         }
 
-        console.log(`✨ Spawned ${this.lootboxes.size} lootboxes with rarities: ${this.getRarityBreakdown()}`);
+        // Spawn navigation boxes
+        this.spawnNavigationBoxes();
+
+        console.log(`✨ Spawned ${this.lootboxes.size} lootboxes and ${this.navigationBoxes.size} navigation boxes with rarities: ${this.getRarityBreakdown()}`);
     }
 
     private generateSpawnPositions(count: number): THREE.Vector3[] {
@@ -68,62 +85,187 @@ export class LootboxManager {
         const spawnPosition = this.mazeGenerator.getSpawnPosition();
         const exitPosition = this.mazeGenerator.getExitPosition();
 
-        // Collect all valid spawn locations (rooms and corridors)
-        const validCells: { x: number, z: number }[] = [];
+        // Step 1: Always place one lootbox in the starting room
+        if (spawnPosition) {
+            const startRoomPosition = this.findStartRoomPosition(spawnPosition, cells, dimensions);
+            if (startRoomPosition) {
+                positions.push(startRoomPosition);
+                console.log('📦 Guaranteed lootbox placed in starting room');
+            }
+        }
 
+        // Step 2: Collect all valid spawn locations, organized by grid sections
+        const gridSections = this.organizeIntoGridSections(cells, dimensions);
+
+        // Step 3: Distribute remaining lootboxes across grid sections
+        const remainingCount = count - positions.length;
+        const additionalPositions = this.distributeAcrossGrid(
+            gridSections,
+            remainingCount,
+            positions,
+            spawnPosition,
+            exitPosition,
+            dimensions
+        );
+
+        positions.push(...additionalPositions);
+
+        return positions;
+    }
+
+    private findStartRoomPosition(spawnPosition: THREE.Vector3, cells: MazeCell[][], dimensions: any): THREE.Vector3 | null {
+        // Convert spawn position to cell coordinates
+        const spawnCellX = Math.round((spawnPosition.x / dimensions.cellSize) + (dimensions.width / 2));
+        const spawnCellZ = Math.round((spawnPosition.z / dimensions.cellSize) + (dimensions.height / 2));
+
+        // Find the room that contains the spawn position
+        const rooms = this.mazeGenerator.getRooms();
+        for (const room of rooms) {
+            if (spawnCellX >= room.x && spawnCellX < room.x + room.width &&
+                spawnCellZ >= room.z && spawnCellZ < room.z + room.height) {
+
+                // Find a good position within this room (not too close to spawn)
+                for (let x = room.x; x < room.x + room.width; x++) {
+                    for (let z = room.z; z < room.z + room.height; z++) {
+                        if (cells[x][z].type === 'room') {
+                            const worldX = (x - dimensions.width / 2) * dimensions.cellSize;
+                            const worldZ = (z - dimensions.height / 2) * dimensions.cellSize;
+                            const candidatePos = new THREE.Vector3(worldX, 1.0, worldZ);
+
+                            // Ensure it's at least 2 units from spawn but still in the room
+                            if (candidatePos.distanceTo(spawnPosition) >= 2.0) {
+                                return candidatePos;
+                            }
+                        }
+                    }
+                }
+
+                // If no position found with distance requirement, just use room center
+                const worldX = (room.centerX - dimensions.width / 2) * dimensions.cellSize;
+                const worldZ = (room.centerZ - dimensions.height / 2) * dimensions.cellSize;
+                return new THREE.Vector3(worldX, 1.0, worldZ);
+            }
+        }
+
+        // Fallback: place near spawn if no room found
+        return new THREE.Vector3(spawnPosition.x + 2, 1.0, spawnPosition.z);
+    }
+
+    private organizeIntoGridSections(cells: MazeCell[][], dimensions: any): Map<string, { x: number, z: number }[]> {
+        const sections = new Map<string, { x: number, z: number }[]>();
+        const sectionsPerSide = 4; // Create a 4x4 grid of sections for more lootboxes
+        const sectionWidth = Math.ceil(dimensions.width / sectionsPerSide);
+        const sectionHeight = Math.ceil(dimensions.height / sectionsPerSide);
+
+        // Initialize sections
+        for (let sx = 0; sx < sectionsPerSide; sx++) {
+            for (let sz = 0; sz < sectionsPerSide; sz++) {
+                sections.set(`${sx}-${sz}`, []);
+            }
+        }
+
+        // Categorize all valid cells into sections
         for (let x = 0; x < dimensions.width; x++) {
             for (let z = 0; z < dimensions.height; z++) {
                 if (cells[x][z].type === 'room' || cells[x][z].type === 'floor') {
-                    validCells.push({ x, z });
+                    const sectionX = Math.floor(x / sectionWidth);
+                    const sectionZ = Math.floor(z / sectionHeight);
+                    const sectionKey = `${sectionX}-${sectionZ}`;
+
+                    const sectionCells = sections.get(sectionKey);
+                    if (sectionCells) {
+                        sectionCells.push({ x, z });
+                    }
                 }
             }
         }
 
-        // Shuffle valid cells for random distribution
-        for (let i = validCells.length - 1; i > 0; i--) {
+        return sections;
+    }
+
+    private distributeAcrossGrid(
+        gridSections: Map<string, { x: number, z: number }[]>,
+        count: number,
+        existingPositions: THREE.Vector3[],
+        spawnPosition: THREE.Vector3 | null,
+        exitPosition: THREE.Vector3 | null,
+        dimensions: any
+    ): THREE.Vector3[] {
+        const positions: THREE.Vector3[] = [];
+        const sectionsWithCells = Array.from(gridSections.entries()).filter(([_, cells]) => cells.length > 0);
+
+        // Shuffle sections for random distribution
+        for (let i = sectionsWithCells.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [validCells[i], validCells[j]] = [validCells[j], validCells[i]];
+            [sectionsWithCells[i], sectionsWithCells[j]] = [sectionsWithCells[j], sectionsWithCells[i]];
         }
 
-        // Select positions, avoiding spawn and exit areas
-        for (const cell of validCells) {
-            if (positions.length >= count) break;
+        let sectionIndex = 0;
+        let attempts = 0;
+        const maxAttempts = count * 10; // Prevent infinite loops
 
-            const worldX = (cell.x - dimensions.width / 2) * dimensions.cellSize;
-            const worldZ = (cell.z - dimensions.height / 2) * dimensions.cellSize;
+        while (positions.length < count && attempts < maxAttempts) {
+            attempts++;
+
+            // Get current section
+            const [sectionKey, sectionCells] = sectionsWithCells[sectionIndex % sectionsWithCells.length];
+
+            // Skip if this section is empty
+            if (sectionCells.length === 0) {
+                sectionIndex++;
+                continue;
+            }
+
+            // Try to place a lootbox in this section
+            const randomCell = sectionCells[Math.floor(Math.random() * sectionCells.length)];
+            const worldX = (randomCell.x - dimensions.width / 2) * dimensions.cellSize;
+            const worldZ = (randomCell.z - dimensions.height / 2) * dimensions.cellSize;
             const candidatePosition = new THREE.Vector3(worldX, 1.0, worldZ);
 
-            // Check distance from spawn and exit
-            const minDistanceFromSpawn = 3.0;
-            const minDistanceFromExit = 3.0;
-            const minDistanceBetweenLootboxes = 2.0;
-
-            let validPosition = true;
-
-            // Check distance from spawn
-            if (spawnPosition && candidatePosition.distanceTo(spawnPosition) < minDistanceFromSpawn) {
-                validPosition = false;
-            }
-
-            // Check distance from exit
-            if (exitPosition && candidatePosition.distanceTo(exitPosition) < minDistanceFromExit) {
-                validPosition = false;
-            }
-
-            // Check distance from other lootboxes
-            for (const existingPos of positions) {
-                if (candidatePosition.distanceTo(existingPos) < minDistanceBetweenLootboxes) {
-                    validPosition = false;
-                    break;
-                }
-            }
-
-            if (validPosition) {
+            // Check if position is valid
+            if (this.isValidLootboxPosition(candidatePosition, existingPositions, positions, spawnPosition, exitPosition)) {
                 positions.push(candidatePosition);
+                console.log(`📦 Lootbox placed in section ${sectionKey}`);
             }
+
+            sectionIndex++;
         }
 
         return positions;
+    }
+
+    private isValidLootboxPosition(
+        candidatePosition: THREE.Vector3,
+        existingPositions: THREE.Vector3[],
+        newPositions: THREE.Vector3[],
+        spawnPosition: THREE.Vector3 | null,
+        exitPosition: THREE.Vector3 | null
+    ): boolean {
+        const minDistanceFromSpawn = 1.5; // Reduced from 3.0 since we want one in start room
+        const minDistanceFromExit = 3.0;
+        // 3 minutes walking distance: 1.5 units/sec * 180 sec = 270 units
+        // But this is too large for the maze, so use a reasonable fraction
+        const minDistanceBetweenLootboxes = 12.0; // Increased for better spacing between lootboxes
+
+        // Check distance from spawn (more lenient)
+        if (spawnPosition && candidatePosition.distanceTo(spawnPosition) < minDistanceFromSpawn) {
+            return false;
+        }
+
+        // Check distance from exit
+        if (exitPosition && candidatePosition.distanceTo(exitPosition) < minDistanceFromExit) {
+            return false;
+        }
+
+        // Check distance from existing lootboxes (both already placed and being placed)
+        const allExistingPositions = [...existingPositions, ...newPositions];
+        for (const existingPos of allExistingPositions) {
+            if (candidatePosition.distanceTo(existingPos) < minDistanceBetweenLootboxes) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private selectRarity(): 'common' | 'rare' | 'epic' | 'legendary' {
@@ -161,9 +303,18 @@ export class LootboxManager {
     }
 
     public update(deltaTime: number): void {
+        // Update lootboxes
         for (const lootbox of this.lootboxes.values()) {
             lootbox.update(deltaTime);
         }
+
+        // Update navigation boxes
+        for (const navBox of this.navigationBoxes.values()) {
+            navBox.update(deltaTime);
+        }
+
+        // Update navigation lines (remove expired ones)
+        this.navigationLines = this.navigationLines.filter(line => line.update(deltaTime));
     }
 
     public checkCollisions(playerPosition: THREE.Vector3): number {
@@ -171,15 +322,28 @@ export class LootboxManager {
 
         for (const lootbox of this.lootboxes.values()) {
             if (!lootbox.isCollected() && lootbox.checkCollision(playerPosition, 1.2)) {
+                const lootboxData = lootbox.getData();
                 const points = lootbox.collect();
                 pointsGained += points;
                 this.totalPoints += points;
                 this.collectedCount++;
 
+                // Add power charge based on lootbox rarity
+                const chargeGained = this.powerManager.addCharge(lootboxData.rarity);
+
+                // Play collection sound effects
+                this.audioManager.playLootboxCollectSFX(lootboxData.rarity);
+                this.audioManager.playPowerGainSFX();
+
                 // Create collection effect
                 this.createCollectionEffect(lootbox.getMesh().position.clone());
+
+                console.log(`⚡ Collected ${lootboxData.rarity} lootbox: +${points} points, +${chargeGained} power`);
             }
         }
+
+        // Check navigation box collisions
+        this.checkNavigationBoxCollisions(playerPosition);
 
         return pointsGained;
     }
@@ -273,6 +437,10 @@ export class LootboxManager {
         };
     }
 
+    public getAllLootboxes(): Lootbox[] {
+        return Array.from(this.lootboxes.values());
+    }
+
     public clearAllLootboxes(): void {
         // Remove from scene and dispose resources
         for (const lootbox of this.lootboxes.values()) {
@@ -292,8 +460,140 @@ export class LootboxManager {
         this.collectedCount = 0;
     }
 
+    private spawnNavigationBoxes(): void {
+        // Clear existing navigation boxes
+        this.clearNavigationBoxes();
+
+        // Get all existing positions (lootboxes)
+        const existingPositions: THREE.Vector3[] = [];
+        for (const lootbox of this.lootboxes.values()) {
+            existingPositions.push(lootbox.getMesh().position.clone());
+        }
+
+        const spawnPosition = this.mazeGenerator.getSpawnPosition();
+        const exitPosition = this.mazeGenerator.getExitPosition();
+
+        if (spawnPosition) existingPositions.push(spawnPosition);
+        if (exitPosition) existingPositions.push(exitPosition);
+
+        // Generate positions for navigation boxes
+        const navPositions = this.generateNavigationBoxPositions(existingPositions);
+
+        navPositions.forEach((position, index) => {
+            const navBoxData: NavigationBoxData = {
+                id: `navbox_${Date.now()}_${index}`,
+                position: position.clone(),
+                collected: false
+            };
+
+            const navBox = new NavigationBox(navBoxData);
+            this.navigationBoxes.set(navBoxData.id, navBox);
+
+            // Add to scene
+            this.scene.add(navBox.getMesh());
+            this.scene.add(navBox.getLight());
+
+            const particles = navBox.getParticles();
+            if (particles) {
+                this.scene.add(particles);
+            }
+        });
+
+        console.log(`🧭 Spawned ${this.navigationBoxes.size} navigation boxes`);
+    }
+
+    private generateNavigationBoxPositions(existingPositions: THREE.Vector3[]): THREE.Vector3[] {
+        const positions: THREE.Vector3[] = [];
+        const cells = this.mazeGenerator.getCells();
+        const dimensions = this.mazeGenerator.getDimensions();
+        const cellSize = this.mazeGenerator.getDimensions().cellSize;
+        const maxAttempts = 100;
+
+        for (let i = 0; i < this.maxNavigationBoxes; i++) {
+            let attempts = 0;
+            let validPosition: THREE.Vector3 | null = null;
+
+            while (attempts < maxAttempts && !validPosition) {
+                // Pick a random floor cell
+                const x = Math.floor(Math.random() * dimensions.width);
+                const z = Math.floor(Math.random() * dimensions.height);
+                const cell = cells[x][z];
+
+                if (cell && (cell.type === 'room' || cell.type === 'floor')) {
+                    const worldX = (x - dimensions.width / 2) * cellSize;
+                    const worldZ = (z - dimensions.height / 2) * cellSize;
+                    const candidatePosition = new THREE.Vector3(worldX, 1.0, worldZ);
+
+                    // Check minimum distance from all existing positions
+                    let validDistance = true;
+                    for (const existingPos of [...existingPositions, ...positions]) {
+                        if (candidatePosition.distanceTo(existingPos) < this.navigationBoxSpacing) {
+                            validDistance = false;
+                            break;
+                        }
+                    }
+
+                    if (validDistance) {
+                        validPosition = candidatePosition;
+                    }
+                }
+                attempts++;
+            }
+
+            if (validPosition) {
+                positions.push(validPosition);
+            }
+        }
+
+        return positions;
+    }
+
+    private clearNavigationBoxes(): void {
+        // Remove from scene and dispose resources
+        for (const navBox of this.navigationBoxes.values()) {
+            this.scene.remove(navBox.getMesh());
+            this.scene.remove(navBox.getLight());
+
+            const particles = navBox.getParticles();
+            if (particles) {
+                this.scene.remove(particles);
+            }
+        }
+
+        // Clear navigation lines
+        for (const line of this.navigationLines) {
+            line.dispose();
+        }
+        this.navigationLines = [];
+
+        this.navigationBoxes.clear();
+    }
+
+    private checkNavigationBoxCollisions(playerPosition: THREE.Vector3): void {
+        for (const navBox of this.navigationBoxes.values()) {
+            if (!navBox.isCollected() && navBox.checkCollision(playerPosition)) {
+                if (navBox.collect()) {
+                    // Create navigation line to exit
+                    const exitPosition = this.mazeGenerator.getExitPosition();
+                    if (exitPosition) {
+                        const line = new NavigationLine(this.scene, playerPosition.clone(), exitPosition);
+                        this.navigationLines.push(line);
+
+                        // Play collection sound
+                        console.log('🧭 Navigation box collected! Line to exit activated for 30 seconds.');
+                    }
+                }
+            }
+        }
+    }
+
+    public getAllNavigationBoxes(): NavigationBox[] {
+        return Array.from(this.navigationBoxes.values());
+    }
+
     public reset(): void {
         this.clearAllLootboxes();
+        this.clearNavigationBoxes();
         console.log('🔄 Lootbox manager reset');
     }
 }

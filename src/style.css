@@ -24,6 +24,15 @@ canvas {
     cursor: none;
 }
 
+/* Debug mode cursor override */
+body.debug-mode canvas {
+    cursor: default !important;
+}
+
+body.debug-mode * {
+    cursor: default !important;
+}
+
 /* HUD Styles */
 .hud {
     position: fixed;

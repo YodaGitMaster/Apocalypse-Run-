@@ -37,9 +37,75 @@
 - **UX**: Click-to-restart keeps gameplay flow smooth and intuitive
 
 ## Lootbox System Implementation (2025-09-21)
-- **Spawning**: 8-15 lootboxes per maze with smart distance-based placement
+- **Spawning**: 10-15 lootboxes per maze with smart distance-based placement (increased)
+- **Guaranteed Start**: Always places one lootbox in the player's starting room
+- **Grid Distribution**: 4x4 section-based placement prevents clustering across maze
+- **Spacing Algorithm**: 12-unit minimum distance between lootboxes for better spread
 - **Rarity System**: 4 tiers (Common 50%, Rare 30%, Epic 15%, Legendary 5%)
 - **Point Values**: 10/25/50/100 points for Common/Rare/Epic/Legendary
 - **Visual Design**: Rarity-colored boxes with glow effects and particle systems
 - **Collection Effects**: Burst particle animation with physics-based movement
 - **Performance**: Efficient geometry reuse and automatic cleanup on restart
+
+## Navigation System (2025-09-21)
+- **Navigation Boxes**: Maximum 3 special diamond-shaped boxes per maze
+- **Distinctive Shape**: Octahedron geometry with cyan color and rotating rings
+- **Smart Placement**: 15-unit minimum distance from all other boxes and key points
+- **Exit Guidance**: 30-second animated line pointing directly to maze exit
+- **Visual Effects**: Color-shifting pulsing line with arc trajectory for visibility
+- **Automatic Cleanup**: Lines expire after 30 seconds and are removed from scene
+- **Debug Integration**: Navigation boxes appear as cyan markers in debug mode
+- **Strategic Value**: Provides temporary navigation aid for lost players
+
+## Power Management System (2025-09-21)
+- **Massive Battery**: 6000 power units for extended gameplay sessions
+- **Flashlight-Only Consumption**: Battery ONLY drains when flashlight is turned on
+- **CRITICAL BUG FIXED**: `updateFlashlightConfig()` was overriding `intensity = 0` on level changes
+- **Conditional Intensity Updates**: Config updates only modify intensity when `isOn = true`
+- **Floating-Point Safety**: PowerManager uses `intensity > 0.001` threshold for consumption
+- **Extended Durations**: L1=12min, L2=5min, L3=3min, L4=2min, L5=1min on full battery
+- **Tiered Flashlight Consumption**: L1 low drain (5/s), L2-3 medium drain (20-33/s), L4-5 high drain (30-60/s)
+- **Dynamic Consumption**: Real-time adjustment when flashlight level changes
+- **Rebalanced Charges**: Lootboxes provide 180-1080 power units (3-18% of battery)
+- **Strategic Gameplay**: Higher flashlight levels require frequent lootbox collection
+- **TRUE Infinite Standby**: Battery never drains when flashlight is off (bug fixed)
+- **Detailed Logging**: Console logs track intensity changes and consumption for debugging
+- **Visual Feedback**: Power surge effect when collecting lootboxes
+- **HUD Integration**: Real-time power display with consumption rate and time remaining
+
+## Audio System Implementation (2025-09-21)
+- **Atmospheric Music**: Horror background tracks with smooth fade transitions
+- **Dynamic Ambience**: Music changes based on power level (normal vs low power)
+- **Procedural SFX**: Web Audio API generated sounds for interactions
+- **Rarity-Based Audio**: Different collection sounds for lootbox rarities
+- **Power Audio Cues**: Warning sounds for low power, gain sounds for charging
+- **Flashlight Integration**: Toggle sounds with on/off audio feedback
+- **Game State Audio**: Specific tracks for game start, game over, and restart
+- **Performance Optimized**: Efficient audio loading and memory management
+
+## Debug Mode System (2025-09-21)
+- **Physics-Free Camera**: Completely disabled gravity and physics in debug mode
+- **Mouse Tilt Controls**: Right-click drag to tilt view (±30° pitch/roll max)
+- **Interactive Clicking**: Left-click on markers to see detailed information
+- **Information Popups**: Real-time display of electricity values and item details
+- **Raycasting System**: Precise 3D object picking for accurate interactions
+- **Locked Position**: Camera continuously locked above maze center, immune to physics
+- **Zoom Controls**: Mouse wheel (smooth) and +/- keys for height adjustment (30-200 units)
+- **No Player Updates**: Player controller disabled to prevent movement/falling
+- **Continuous Locking**: Camera position enforced every frame to prevent drift
+- **Roof Removal**: Automatically hides roof meshes (Y > 2.5) for unobstructed view
+- **Full Lighting**: Bright ambient, directional, and hemisphere lights for visibility
+- **Enhanced Markers**: Much larger (15-unit tall) cylinders with glowing outlines
+- **Text Labels**: Multi-line floating text with black backgrounds and colored borders
+- **Clickable Elements**: All markers (spawn, exit, lootboxes) respond to mouse clicks
+- **Electricity Display**: Shows exact charge values (180-1080 units) for each lootbox
+- **Status Information**: Displays collection status and point values
+- **Mouse Cursor Management**: Multi-layered approach to force cursor visibility
+- **CSS Override Solution**: Uses debug-mode class with !important rules
+- **Pointer Lock Control**: Releases pointer lock with timing delay for reliability
+- **Multi-Element Targeting**: Sets cursor on body, canvas, and documentElement
+- **Click Prevention**: Prevents game from capturing mouse while in debug mode
+- **Context Menu Disabled**: Right-click context menu disabled in debug mode
+- **Toggle Control**: Backtick (`) key for instant debug mode on/off
+- **HUD Integration**: Shows all control options and real-time statistics
+- **State Preservation**: Restores normal view, physics, and mouse controls when exiting

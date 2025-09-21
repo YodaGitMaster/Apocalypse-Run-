@@ -413,8 +413,8 @@ export class MazeGenerator {
         console.log('🏠 Roof created');
     }
 
-    public addArtificialLighting(scene: THREE.Scene): THREE.PointLight[] {
-        const lights: THREE.PointLight[] = [];
+    public addArtificialLighting(scene: THREE.Scene): THREE.Light[] {
+        const lights: THREE.Light[] = [];
         const lampPositions: THREE.Vector3[] = [];
 
         // Add lights in rooms
@@ -457,7 +457,7 @@ export class MazeGenerator {
         return lights;
     }
 
-    private addMinimalLighting(scene: THREE.Scene, lights: THREE.PointLight[]): void {
+    private addMinimalLighting(scene: THREE.Scene, lights: THREE.Light[]): void {
         const minimalLights: THREE.Vector3[] = [];
 
         // Add minimal lights in corridors (different pattern from main lights)

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AudioManager } from './AudioManager';
 
 export interface FlashlightConfig {
     intensity: number;
@@ -14,6 +15,8 @@ export class Flashlight {
     private camera: THREE.Camera;
     private isOn: boolean = false;
     private currentLevel: number = 3; // Default to smartphone light (now level 3)
+    private onLevelChange?: (level: number) => void;
+    private audioManager?: AudioManager;
 
     // Flashlight configurations for different levels
     private readonly configs: Record<number, FlashlightConfig> = {
@@ -90,7 +93,17 @@ export class Flashlight {
     private updateFlashlightConfig(): void {
         const config = this.configs[this.currentLevel];
 
-        this.spotlight.intensity = config.intensity;
+        // Only update intensity if flashlight is actually on
+        // This prevents level changes from overriding the intensity = 0 when flashlight is off
+        if (this.isOn) {
+            this.spotlight.intensity = config.intensity;
+            console.log(`🔦 Config updated - flashlight ON, intensity set to ${config.intensity}`);
+        } else {
+            // Preserve intensity = 0 when flashlight is off
+            console.log(`🔦 Config updated - flashlight OFF, intensity preserved at 0`);
+        }
+
+        // Update other properties regardless of on/off state
         this.spotlight.distance = config.distance;
         this.spotlight.angle = config.angle;
         this.spotlight.penumbra = config.penumbra;
@@ -108,6 +121,27 @@ export class Flashlight {
         this.isOn = !this.isOn;
         this.spotlight.visible = this.isOn;
 
+        // Set intensity to 0 when off to stop power consumption
+        if (this.isOn) {
+            const config = this.configs[this.currentLevel];
+            this.spotlight.intensity = config.intensity;
+            // When turning on, notify PowerManager to use the current level's consumption
+            if (this.onLevelChange) {
+                this.onLevelChange(this.currentLevel);
+            }
+        } else {
+            this.spotlight.intensity = 0;
+            // When turning off, notify PowerManager to use a consumption level of 0
+            if (this.onLevelChange) {
+                this.onLevelChange(0); // Level 0 signifies "off"
+            }
+        }
+
+        // Play toggle sound effect
+        if (this.audioManager) {
+            this.audioManager.playFlashlightToggleSFX(this.isOn);
+        }
+
         console.log(`🔦 Flashlight ${this.isOn ? 'ON' : 'OFF'} - Level ${this.currentLevel} (${this.configs[this.currentLevel].name})`);
         return this.isOn;
     }
@@ -117,10 +151,26 @@ export class Flashlight {
             this.currentLevel = level;
             this.updateFlashlightConfig();
 
-            console.log(`🔦 Flashlight level changed to ${level} (${this.configs[level].name})`);
+            // Only notify power manager about level change if flashlight is currently ON
+            // If it's OFF, the power manager should continue using consumption rate 0
+            if (this.onLevelChange && this.isOn) {
+                this.onLevelChange(level);
+                console.log(`🔦 Flashlight level changed to ${level} (${this.configs[level].name}) - PowerManager notified`);
+            } else {
+                console.log(`🔦 Flashlight level changed to ${level} (${this.configs[level].name}) - PowerManager NOT notified (flashlight is OFF)`);
+            }
+
             return true;
         }
         return false;
+    }
+
+    public setLevelChangeCallback(callback: (level: number) => void): void {
+        this.onLevelChange = callback;
+    }
+
+    public setAudioManager(audioManager: AudioManager): void {
+        this.audioManager = audioManager;
     }
 
     public update(cameraPosition: THREE.Vector3, cameraDirection: THREE.Vector3): void {
@@ -149,5 +199,9 @@ export class Flashlight {
 
     public getAllConfigs(): Record<number, FlashlightConfig> {
         return this.configs;
+    }
+
+    public getSpotlight(): THREE.SpotLight {
+        return this.spotlight;
     }
 }
