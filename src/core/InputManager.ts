@@ -1,5 +1,6 @@
 export class InputManager {
     private keys = new Set<string>();
+    private pressedKeys = new Set<string>(); // Track which keys were just pressed
     private mouseDelta = { x: 0, y: 0 };
     private pointerLocked = false;
 
@@ -13,7 +14,7 @@ export class InputManager {
             this.keys.add(event.code);
 
             // Prevent default for game keys
-            if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft'].includes(event.code)) {
+            if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'KeyF', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(event.code)) {
                 event.preventDefault();
             }
         });
@@ -44,6 +45,7 @@ export class InputManager {
         // Clear keys when window loses focus
         window.addEventListener('blur', () => {
             this.keys.clear();
+            this.pressedKeys.clear();
         });
     }
 
@@ -80,5 +82,17 @@ export class InputManager {
 
     isKeyPressed(keyCode: string): boolean {
         return this.keys.has(keyCode);
+    }
+
+    wasKeyPressed(keyCode: string): boolean {
+        return this.pressedKeys.has(keyCode);
+    }
+
+    markKeyPressed(keyCode: string): void {
+        this.pressedKeys.add(keyCode);
+    }
+
+    markKeyReleased(keyCode: string): void {
+        this.pressedKeys.delete(keyCode);
     }
 }

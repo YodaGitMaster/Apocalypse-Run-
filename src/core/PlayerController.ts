@@ -1,10 +1,13 @@
 import * as THREE from 'three';
+import { Flashlight } from './Flashlight';
 import { InputManager } from './InputManager';
 
 export class PlayerController {
     private camera: THREE.PerspectiveCamera;
     private inputManager: InputManager;
     private directionArrow: THREE.Mesh;
+    private flashlight!: Flashlight;
+    private mazeGenerator?: any; // Reference to maze for collision detection
 
     // Movement properties
     private velocity = new THREE.Vector3();
@@ -42,9 +45,10 @@ export class PlayerController {
     // Player dimensions
     private readonly eyeHeight = 1.6;
 
-    constructor(camera: THREE.PerspectiveCamera, inputManager: InputManager) {
+    constructor(camera: THREE.PerspectiveCamera, inputManager: InputManager, scene?: THREE.Scene, mazeGenerator?: any) {
         this.camera = camera;
         this.inputManager = inputManager;
+        this.mazeGenerator = mazeGenerator;
 
         // Set initial position
         this.camera.position.set(0, this.groundY + this.eyeHeight, 5);
@@ -63,6 +67,11 @@ export class PlayerController {
 
         // Create direction arrow
         this.createDirectionArrow();
+
+        // Initialize flashlight if scene is provided
+        if (scene) {
+            this.flashlight = new Flashlight(this.camera, scene);
+        }
     }
 
     update(deltaTime: number): void {
@@ -70,8 +79,10 @@ export class PlayerController {
 
         this.handleMouseLook();
         this.handleMovement(deltaTime);
+        this.handleFlashlightControls();
         this.applyPhysics(deltaTime);
         this.updateDirectionArrow();
+        this.updateFlashlight();
     }
 
     private handleMouseLook(): void {
@@ -165,26 +176,71 @@ export class PlayerController {
 
     private applyPhysics(deltaTime: number): void {
         // Apply gravity
-        if (!this.isOnGround) {
-            this.velocity.y += this.gravity * deltaTime;
-        }
+        this.velocity.y += this.gravity * deltaTime;
 
-        // Update position
-        const deltaPosition = this.velocity.clone().multiplyScalar(deltaTime);
-        this.camera.position.add(deltaPosition);
+        // Store old position for collision detection
+        const oldPosition = this.camera.position.clone();
+
+        // Calculate new position
+        const newPosition = this.camera.position.clone();
+        newPosition.addScaledVector(this.velocity, deltaTime);
+
+        // Check wall collisions before applying movement
+        const collisionCheckedPosition = this.checkWallCollisions(oldPosition, newPosition);
+        this.camera.position.copy(collisionCheckedPosition);
 
         // Ground collision
-        const groundLevel = this.groundY + this.eyeHeight;
-        if (this.camera.position.y <= groundLevel) {
-            this.camera.position.y = groundLevel;
+        if (this.camera.position.y <= this.groundY + this.eyeHeight) {
+            this.camera.position.y = this.groundY + this.eyeHeight;
             this.velocity.y = 0;
             this.isOnGround = true;
+        } else {
+            this.isOnGround = false;
+        }
+    }
+
+    private checkWallCollisions(oldPos: THREE.Vector3, newPos: THREE.Vector3): THREE.Vector3 {
+        if (!this.mazeGenerator) return newPos;
+
+        const playerRadius = 0.15; // Reduced radius for better passage navigation
+        const checkedPos = newPos.clone();
+
+        // Check X axis collision independently
+        if (this.isWallAtPosition(checkedPos.x + playerRadius, checkedPos.z) ||
+            this.isWallAtPosition(checkedPos.x - playerRadius, checkedPos.z)) {
+            checkedPos.x = oldPos.x; // Block X movement only
+            this.velocity.x = 0; // Stop X velocity
         }
 
-        // Simple boundary constraints (optional)
-        const maxDistance = 45; // Keep player within reasonable bounds
-        this.camera.position.x = Math.max(-maxDistance, Math.min(maxDistance, this.camera.position.x));
-        this.camera.position.z = Math.max(-maxDistance, Math.min(maxDistance, this.camera.position.z));
+        // Check Z axis collision independently (use updated X position)
+        if (this.isWallAtPosition(checkedPos.x, checkedPos.z + playerRadius) ||
+            this.isWallAtPosition(checkedPos.x, checkedPos.z - playerRadius)) {
+            checkedPos.z = oldPos.z; // Block Z movement only
+            this.velocity.z = 0; // Stop Z velocity
+        }
+
+        // Remove aggressive diagonal blocking - allow sliding along walls
+
+        return checkedPos;
+    }
+
+    private isWallAtPosition(worldX: number, worldZ: number): boolean {
+        if (!this.mazeGenerator) return false;
+
+        const dimensions = this.mazeGenerator.getDimensions();
+        const cells = this.mazeGenerator.getCells();
+
+        // Convert world coordinates to cell coordinates with better rounding
+        const cellX = Math.round((worldX / dimensions.cellSize) + (dimensions.width / 2));
+        const cellZ = Math.round((worldZ / dimensions.cellSize) + (dimensions.height / 2));
+
+        // Check bounds with small tolerance
+        if (cellX < 0 || cellX >= dimensions.width || cellZ < 0 || cellZ >= dimensions.height) {
+            return true; // Treat out of bounds as walls
+        }
+
+        // Check if cell is a wall
+        return cells[cellX][cellZ].type === 'wall';
     }
 
     private createDirectionArrow(): void {
@@ -257,8 +313,54 @@ export class PlayerController {
         this.groundY = y;
     }
 
+    private handleFlashlightControls(): void {
+        if (!this.flashlight) return;
+
+        const keys = this.inputManager.getKeys();
+
+        // Toggle flashlight with F key
+        if (keys.has('KeyF')) {
+            // Prevent rapid toggling by checking if key was just pressed
+            if (!this.inputManager.wasKeyPressed('KeyF')) {
+                this.flashlight.toggle();
+                this.inputManager.markKeyPressed('KeyF');
+            }
+        } else {
+            this.inputManager.markKeyReleased('KeyF');
+        }
+
+        // Change flashlight level with number keys 1-5
+        for (let i = 1; i <= 5; i++) {
+            const keyCode = `Digit${i}`;
+            if (keys.has(keyCode)) {
+                if (!this.inputManager.wasKeyPressed(keyCode)) {
+                    this.flashlight.setLevel(i);
+                    this.inputManager.markKeyPressed(keyCode);
+                }
+            } else {
+                this.inputManager.markKeyReleased(keyCode);
+            }
+        }
+    }
+
+    private updateFlashlight(): void {
+        if (!this.flashlight) return;
+
+        // Calculate camera forward direction
+        const direction = new THREE.Vector3();
+        this.camera.getWorldDirection(direction);
+
+        // Update flashlight position and direction
+        this.flashlight.update(this.camera.position, direction);
+    }
+
     // Get direction arrow for adding to scene
     getDirectionArrow(): THREE.Mesh {
         return this.directionArrow;
+    }
+
+    // Get flashlight for external access
+    getFlashlight(): Flashlight | undefined {
+        return this.flashlight;
     }
 }

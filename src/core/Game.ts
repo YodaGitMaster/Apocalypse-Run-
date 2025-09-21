@@ -3,6 +3,7 @@ import { createWorld, IWorld } from 'bitecs';
 import * as THREE from 'three';
 import { ECSWorld } from './ECSWorld';
 import { InputManager } from './InputManager';
+import { MazeGenerator } from './MazeGenerator';
 import { PhysicsWorld } from './PhysicsWorld';
 import { PlayerController } from './PlayerController';
 import { Renderer } from './Renderer';
@@ -13,6 +14,7 @@ export class Game {
     private physicsWorld!: PhysicsWorld;
     private ecsWorld!: ECSWorld;
     private playerController!: PlayerController;
+    private mazeGenerator!: MazeGenerator;
     private world!: IWorld;
 
     private scene!: THREE.Scene;
@@ -58,8 +60,14 @@ export class Game {
             1000 // Far
         );
 
-        // Initialize player controller (this will set camera position)
-        this.playerController = new PlayerController(this.camera, this.inputManager);
+        // Generate maze
+        this.mazeGenerator = new MazeGenerator(30, 30); // 30x30 maze
+        this.mazeGenerator.generateMaze();
+
+        // Initialize player controller at random spawn position
+        this.playerController = new PlayerController(this.camera, this.inputManager, this.scene, this.mazeGenerator);
+        const spawnPosition = this.mazeGenerator.getRandomSpawnPosition();
+        this.camera.position.copy(spawnPosition);
 
         // Add direction arrow to scene
         this.scene.add(this.playerController.getDirectionArrow());
@@ -67,8 +75,8 @@ export class Game {
         // Initialize renderer with scene and camera
         await this.renderer.initialize(this.scene, this.camera);
 
-        // Create basic scene
-        this.createBasicScene();
+        // Create maze scene
+        this.createMazeScene();
 
         // Setup event listeners
         this.setupEventListeners();
@@ -76,33 +84,18 @@ export class Game {
         console.log('✅ Game initialization complete');
     }
 
-    private createBasicScene(): void {
-        // Add lighting
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    private createMazeScene(): void {
+        // Add minimal ambient lighting (very dark environment)
+        const ambientLight = new THREE.AmbientLight(0x202020, 0.1);
         this.scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(10, 10, 5);
-        directionalLight.castShadow = true;
-        this.scene.add(directionalLight);
+        // Create the maze geometry with walls and roof
+        this.mazeGenerator.createThreeJSMaze(this.scene);
 
-        // Create ground plane
-        const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x404040 });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        this.scene.add(ground);
+        // Add artificial lighting throughout the maze
+        this.mazeGenerator.addArtificialLighting(this.scene);
 
-        // Create a test cube
-        const cubeGeometry = new THREE.BoxGeometry(2, 2, 2);
-        const cubeMaterial = new THREE.MeshLambertMaterial({ color: 0xff6b35 });
-        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-        cube.position.set(0, 1, 0);
-        cube.castShadow = true;
-        this.scene.add(cube);
-
-        console.log('🎨 Basic scene created');
+        console.log('🏗️ Enclosed maze scene created with artificial lighting');
     }
 
     private setupEventListeners(): void {
@@ -181,7 +174,13 @@ export class Game {
 
         if (positionElement) {
             const pos = this.playerController.getPosition();
-            positionElement.textContent = `${pos.x.toFixed(1)},${pos.y.toFixed(1)},${pos.z.toFixed(1)}`;
+            const flashlight = this.playerController.getFlashlight();
+            const flashlightStatus = flashlight ?
+                (flashlight.isFlashlightOn() ?
+                    `🔦 ON (${flashlight.getCurrentLevel()}-${flashlight.getCurrentConfig().name})` :
+                    `🔦 OFF (${flashlight.getCurrentLevel()}-${flashlight.getCurrentConfig().name})`) :
+                '';
+            positionElement.textContent = `${pos.x.toFixed(1)},${pos.y.toFixed(1)},${pos.z.toFixed(1)} ${flashlightStatus}`;
         }
     }
 

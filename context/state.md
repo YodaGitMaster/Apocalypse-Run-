@@ -1,59 +1,37 @@
-# Project State - Quake Arena WebGPU Game
+# Project State
 
-**Last Updated**: 2025-09-21 Foundation Complete
+## Current Status: Maze Generation Complete ✅
 
-## Current Status
-- **Active Task**: FPS Movement System Complete
-- **Last Action**: Implemented proper ground collision and natural camera constraints
-- **Next Step**: Test improved movement, then add maze generation
+### Last Completed Action
+- Created comprehensive maze generator with rooms and corridors
+- Integrated maze generation into Three.js scene
+- Added random spawn positioning in maze
+- Configured lighting for maze environment
 
-## Project Overview
-Building browser-based Quake Arena clone using:
-- WebGPU for rendering (migrating from existing WebGL2)
-- TypeScript for type safety
-- Rapier for physics
-- ECS architecture for game systems
-- WebRTC for networking
+### Active Components
+- **MazeGenerator**: Creates 30x30 maze with rooms and tunnels
+- **PlayerController**: FPS movement with smooth lag (0.024 factor)
+- **Game**: Orchestrates maze generation and player spawning
+- **Three.js Scene**: Renders maze with optimized lighting
 
-## Existing Assets
-- `index.html`: Complete WebGL2 FPS prototype with:
-  - Basic 3D rendering, camera controls
-  - WASD movement, mouse look, jumping
-  - Simple arena geometry
-  - Performance stats display
+### Current Features
+- **Maze Generation**: Random maze on each reload
+- **Room System**: 4-8 unit rooms with corridor connections  
+- **Movement**: Smooth laggy controls (forward 1.5, backward 0.45 speed)
+- **Camera**: 30° pitch, 60° yaw limits with smooth lag
+- **Body Rotation**: A/D continuous rotation at same lag speed
+- **Direction Arrow**: Red arrow showing walking direction
 
-## Architecture Target
-```
-/src
-  main.ts           # boot, game loop
-  gpu.ts            # device/context, pipelines, buffers  
-  shaders/standard.wgsl
-  math/mat4.ts, vec3.ts
-  input.ts          # keys, pointer lock, bindings
-  camera.ts         # FPS camera & feel
-  physics/world.ts  # rapier setup, queries
-  ecs/world.ts, systems/, components/
-  gameplay/weapons.ts, projectiles.ts, pickups.ts
-  net/client.ts, messages.ts
-assets/maps/, textures/, sounds/
-```
+### Next Required Steps
+1. Add physics colliders for maze walls
+2. Update physics world for maze collision
+3. Test maze navigation and collision
 
-## Completed Foundation
-✅ TypeScript project with Vite build system  
-✅ Three.js WebGL2 renderer with shadows
-✅ Rapier3D physics integration (WASM resolved)
-✅ bitecs ECS architecture foundation
-✅ **Proper FPS movement system**:
-  - Ground collision and gravity
-  - Natural camera pitch constraints (±60°)
-  - Physics-based player controller
-  - Smooth WASD movement on ground plane
-✅ Input handling with pointer lock
-✅ Basic 3D scene with lighting and materials
+### Blockers
+None - maze generation working correctly
 
-## Next Priorities
-1. Physics integration with Rapier
-2. ECS architecture for game objects
-3. Weapon systems and projectiles
-4. Map loading system
-5. Networking foundation
+### Technical Notes
+- Maze size: 30x30 cells (2x2 units each)
+- Wall height: 3 units
+- Room generation: 15 attempts, 4-8 unit sizes
+- Spawn: Random position in rooms or corridors
