@@ -1,172 +1,46 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>WebGL2 FPS Starter – Quake-ish</title>
-    <style>
-        html,
-        body {
-            margin: 0;
-            height: 100%;
-            background: #0b0d10;
-            color: #dfe7ef;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
-        }
-
-        #overlay {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-        }
-
-        #hint {
-            background: rgba(0, 0, 0, .55);
-            padding: 12px 16px;
-            border-radius: 10px;
-            pointer-events: auto;
-            cursor: crosshair;
-        }
-
-        #stats {
-            position: fixed;
-            left: 10px;
-            top: 10px;
-            background: rgba(0, 0, 0, .4);
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-        }
-
-        canvas {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-
-        .kbd {
-            padding: 0 4px;
-            border: 1px solid rgba(255, 255, 255, .25);
-            border-bottom-width: 2px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, .06);
-        }
-    </style>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quake Arena</title>
 </head>
 
 <body>
-    <canvas id="gfx"></canvas>
-    <div id="stats">FPS: <span id="fps">0</span> • Pos: <span id="pos">0,0,0</span></div>
-    <div id="overlay">
-        <div id="hint">Click to lock pointer • Move: <span class="kbd">WASD</span> • Look: mouse • Jump: <span
-                class="kbd">Space</span></div>
+    <div id="app">
+        <!-- HUD Elements -->
+        <div class="hud">
+            <div class="stats hud-element">
+                <div>FPS: <span id="fps">60</span></div>
+                <div>Pos: <span id="position">0,0,0</span></div>
+            </div>
+            <div class="crosshair"></div>
+        </div>
+
+        <!-- Initial Menu -->
+        <div id="menu" class="menu-overlay">
+            <div class="menu">
+                <h1>🎮 Quake Arena</h1>
+                <p>Click anywhere to start</p>
+                <button onclick="startGame()">Start Game</button>
+            </div>
+        </div>
     </div>
-    <script type="module">
-        // --- Minimal utilities -----------------------------------------------------
-        const PI = Math.PI;
-        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-        function mat4Identity() { return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; }
-        function mat4Multiply(a, b) {
-            const out = new Array(16);
-            for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) out[i * 4 + j] = a[i * 4 + 0] * b[0 * 4 + j] + a[i * 4 + 1] * b[1 * 4 + j] + a[i * 4 + 2] * b[2 * 4 + j] + a[i * 4 + 3] * b[3 * 4 + j];
-            return out;
-        }
-        function mat4Perspective(fovy, aspect, near, far) {
-            const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
-            return [f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, (2 * far * near) * nf, 0];
-        }
-        function mat4FromYawPitchPos(yaw, pitch, pos) {
-            const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-            const fx = cy * cp, fy = sp, fz = sy * cp; const fLen = Math.hypot(fx, fy, fz);
-            const f0 = [fx / fLen, fy / fLen, fz / fLen]; const up = [0, 1, 0];
-            const rx = f0[1] * up[2] - f0[2] * up[1]; const ry = f0[2] * up[0] - f0[0] * up[2]; const rz = f0[0] * up[1] - f0[1] * up[0];
-            const rLen = Math.hypot(rx, ry, rz); const r0 = [rx / rLen, ry / rLen, rz / rLen];
-            const ux = r0[1] * f0[2] - r0[2] * f0[1]; const uy = r0[2] * f0[0] - r0[0] * f0[2]; const uz = r0[0] * f0[1] - r0[1] * f0[0];
-            const x = -(r0[0] * pos[0] + r0[1] * pos[1] + r0[2] * pos[2]);
-            const y = -(ux * pos[0] + uy * pos[1] + uz * pos[2]);
-            const z = -(f0[0] * pos[0] + f0[1] * pos[1] + f0[2] * pos[2]);
-            return [r0[0], ux, f0[0], 0,
-            r0[1], uy, f0[1], 0,
-            r0[2], uz, f0[2], 0,
-                x, y, z, 1];
-        }
-        function mat4Translate(m, v) { const [x, y, z] = v; const t = mat4Identity(); t[12] = x; t[13] = y; t[14] = z; return mat4Multiply(m, t); }
-        function scale3(m, s) { const [x, y, z] = s; const S = [x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1]; return mat4Multiply(m, S); }
 
-        // --- Elements ---------------------------------------------------------------
-        const canvas = document.getElementById('gfx');
-        const overlay = document.getElementById('overlay');
-        const fpsEl = document.getElementById('fps');
-        const posEl = document.getElementById('pos');
-
-        let gl = canvas.getContext('webgl2', { antialias: true, depth: true });
-        if (!gl) {
-            const ctx2d = canvas.getContext('2d'); canvas.width = innerWidth; canvas.height = innerHeight;
-            ctx2d.fillStyle = '#1e2633'; ctx2d.fillRect(0, 0, canvas.width, canvas.height);
-            ctx2d.fillStyle = '#cde3ff'; ctx2d.font = '20px system-ui';
-            ctx2d.fillText('WebGL2 unavailable in this environment.', 24, 48);
+    <script>
+        function startGame() {
+            document.getElementById('menu').style.display = 'none';
         }
 
-        function resize() {
-            const dpr = Math.min(2, window.devicePixelRatio || 1);
-            canvas.width = Math.floor(innerWidth * dpr);
-            canvas.height = Math.floor(innerHeight * dpr);
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            gl.enable(gl.DEPTH_TEST);
-            gl.clearColor(0.12, 0.14, 0.2, 1);
-        }
-        resize(); addEventListener('resize', resize);
-
-        // --- Shaders ---------------------------------------------------------------
-        const GLSL_VS = `#version 300 es
-in vec3 position; in vec3 normal; in vec3 color; out vec3 vN; out vec3 vC;
-uniform mat4 uVP; uniform mat4 uModel; void main(){ gl_Position = uVP * uModel * vec4(position,1.0); vN = mat3(uModel)*normal; vC = color; }`;
-        const GLSL_FS = `#version 300 es
-precision highp float; in vec3 vN; in vec3 vC; out vec4 outColor;
-void main(){ vec3 L = normalize(vec3(0.5,0.9,0.3)); float lambert=max(dot(normalize(vN),L),0.0); vec3 base=vC*(0.2+0.8*lambert); outColor=vec4(base,1.0); }`;
-
-        function compile(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
-        const vs = compile(gl.VERTEX_SHADER, GLSL_VS), fs = compile(gl.FRAGMENT_SHADER, GLSL_FS);
-        const webglProgram = gl.createProgram(); gl.attachShader(webglProgram, vs); gl.attachShader(webglProgram, fs); gl.linkProgram(webglProgram);
-        if (!gl.getProgramParameter(webglProgram, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(webglProgram));
-        const webglLocs = {
-            pos: gl.getAttribLocation(webglProgram, 'position'),
-            nor: gl.getAttribLocation(webglProgram, 'normal'),
-            col: gl.getAttribLocation(webglProgram, 'color'),
-            uVP: gl.getUniformLocation(webglProgram, 'uVP'),
-            uModel: gl.getUniformLocation(webglProgram, 'uModel'),
-        };
-
-        // --- Geometry ---------------------------------------------------------------
-        function makeCube(color = [0.9, 0.9, 0.95]) {
-            const p = [ /* cube vertices like before */];
-            return new Float32Array(p);
-        }
-        function createVertexBuffer(data) { const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return buffer; }
-        const meshes = [];
-        function addBox(tx, ty, tz, sx, sy, sz, color = [0.7, 0.8, 0.9]) { const data = makeCube(color); const vb = createVertexBuffer(data); const model = scale3(mat4Translate(mat4Identity(), [tx, ty, tz]), [sx, sy, sz]); meshes.push({ vb, vertexCount: data.length / 9, model, color }); }
-        function buildArena() { meshes.length = 0; addBox(0, -2, 0, 50, 1, 50, [0.18, 0.22, 0.28]); addBox(0, 1, -15, 40, 3, 1, [0.35, 0.45, 0.65]); }
-        buildArena();
-
-        // --- Camera & controls ------------------------------------------------------
-        const cam = { pos: [0, 1.2, 10], yaw: -Math.PI / 2, pitch: 0, speed: 10, sens: 0.0018 };
-        const keys = new Set(); let onGround = true; let vy = 0; const GRAV = 28, JUMP = 9;
-        function lockPointer() { try { canvas.requestPointerLock({ unadjustedMovement: true }); } catch { try { canvas.requestPointerLock(); } catch { } } }
-        canvas.addEventListener('click', () => { lockPointer(); });
-        document.addEventListener('pointerlockchange', () => { overlay.style.display = (document.pointerLockElement ? 'none' : 'flex'); });
-        document.addEventListener('mousemove', (e) => { if (document.pointerLockElement !== canvas) return; cam.yaw -= e.movementX * cam.sens; cam.pitch -= e.movementY * cam.sens; cam.pitch = clamp(cam.pitch, -1.45, 1.45); });
-        document.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space' && onGround) { vy = JUMP; onGround = false; } });
-        document.addEventListener('keyup', (e) => { keys.delete(e.code); });
-        function update(dt) { const forward = [Math.cos(cam.yaw), 0, Math.sin(cam.yaw)]; const right = [Math.sin(cam.yaw - PI / 2), 0, Math.cos(cam.yaw - PI / 2)]; let vx = 0, vz = 0; if (keys.has('KeyW')) { vx += forward[0]; vz += forward[2]; } if (keys.has('KeyS')) { vx -= forward[0]; vz -= forward[2]; } if (keys.has('KeyA')) { vx -= right[0]; vz -= right[2]; } if (keys.has('KeyD')) { vx += right[0]; vz += right[2]; } const len = Math.hypot(vx, vz) || 1; vx /= len; vz /= len; cam.pos[0] += vx * cam.speed * dt; cam.pos[2] += vz * cam.speed * dt; vy -= GRAV * dt; cam.pos[1] += vy * dt; if (cam.pos[1] <= 1.2) { cam.pos[1] = 1.2; vy = 0; onGround = true; } }
-
-        // --- Render loop ------------------------------------------------------------
-        let last = performance.now(); let frames = 0, acc = 0;
-        function frame(ts) { const dt = Math.min(0.033, (ts - last) / 1000); last = ts; update(dt); frames++; acc += dt; if (acc >= 0.5) { fpsEl.textContent = String(Math.round(frames / acc)); frames = 0; acc = 0; } posEl.textContent = cam.pos.map(v => v.toFixed(1)).join(','); const aspect = canvas.width / canvas.height; const proj = mat4Perspective(60 * PI / 180, aspect, 0.1, 200.0); const view = mat4FromYawPitchPos(cam.yaw, cam.pitch, cam.pos); const vp = mat4Multiply(proj, view); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.useProgram(webglProgram); gl.uniformMatrix4fv(webglLocs.uVP, false, new Float32Array(vp)); for (const m of meshes) { gl.uniformMatrix4fv(webglLocs.uModel, false, new Float32Array(m.model)); gl.bindBuffer(gl.ARRAY_BUFFER, m.vb); const stride = 9 * 4; gl.enableVertexAttribArray(webglLocs.pos); gl.vertexAttribPointer(webglLocs.pos, 3, gl.FLOAT, false, stride, 0); gl.enableVertexAttribArray(webglLocs.nor); gl.vertexAttribPointer(webglLocs.nor, 3, gl.FLOAT, false, stride, 3 * 4); gl.enableVertexAttribArray(webglLocs.col); gl.vertexAttribPointer(webglLocs.col, 3, gl.FLOAT, false, stride, 6 * 4); gl.drawArrays(gl.TRIANGLES, 0, m.vertexCount); } requestAnimationFrame(frame); } requestAnimationFrame(frame);
+        // Show menu initially
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('menu').style.display = 'flex';
+        });
     </script>
+
+    <script type="module" src="/src/main.ts"></script>
 </body>
 
 </html>

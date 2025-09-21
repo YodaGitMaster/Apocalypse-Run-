@@ -1,0 +1,31 @@
+{
+  "hash": "723f061b",
+  "configHash": "e96a1aa3",
+  "lockfileHash": "3d9ce450",
+  "browserHash": "fedeb21e",
+  "optimized": {
+    "bitecs": {
+      "src": "../../node_modules/bitecs/dist/index.mjs",
+      "file": "bitecs.js",
+      "fileHash": "b50731ba",
+      "needsInterop": false
+    },
+    "three": {
+      "src": "../../node_modules/three/build/three.module.js",
+      "file": "three.js",
+      "fileHash": "563ebb1c",
+      "needsInterop": false
+    },
+    "@dimforge/rapier3d": {
+      "src": "../../node_modules/@dimforge/rapier3d/rapier.js",
+      "file": "@dimforge_rapier3d.js",
+      "fileHash": "d1029d8c",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-PZ5AY32C": {
+      "file": "chunk-PZ5AY32C.js"
+    }
+  }
+}

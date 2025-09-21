@@ -4,11 +4,7 @@
         "lib": [
             "ES2022",
             "DOM",
-            "DOM.Iterable",
-            "WebWorker"
-        ],
-        "types": [
-            "@webgpu/types"
+            "DOM.Iterable"
         ],
         "module": "ESNext",
         "moduleResolution": "bundler",
@@ -16,11 +12,19 @@
         "resolveJsonModule": true,
         "isolatedModules": true,
         "noEmit": true,
-        "jsx": "preserve",
+        "jsx": "react-jsx",
+        /* Strict Type-Checking Options */
         "strict": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true,
+        "allowUnusedLabels": false,
+        "allowUnreachableCode": false,
+        /* Module Resolution Options */
         "skipLibCheck": true,
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
@@ -37,6 +41,7 @@
     ],
     "exclude": [
         "node_modules",
-        "dist"
+        "dist",
+        "**/*.test.*"
     ]
 }

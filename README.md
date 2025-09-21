@@ -1,89 +1,196 @@
-# Quake Arena WebGPU
+# QuakeArena
 
-A browser-based Quake Arena-style FPS game built with WebGPU and TypeScript.
+A modern 3D first-person shooter game built with TypeScript, Three.js, and Rapier3D physics engine. This project implements an Entity Component System (ECS) architecture for optimal performance and maintainability.
 
-## Features
+## 🎮 Features
 
-- **WebGPU Rendering**: Modern graphics API with compute shader support
-- **FPS Camera**: Smooth first-person controls with mouse look and WASD movement
-- **Physics Ready**: Prepared for Rapier physics integration
-- **TypeScript**: Full type safety for complex 3D math and game logic
-- **Modern Architecture**: ECS-ready design for scalable game systems
+- **3D Graphics**: Powered by Three.js for high-performance WebGL rendering
+- **Physics Engine**: Realistic physics simulation using Rapier3D
+- **ECS Architecture**: Entity Component System for efficient game object management
+- **Modern TypeScript**: Full type safety and modern JavaScript features
+- **WebGL Shaders**: Custom shaders for enhanced visual effects
+- **Audio System**: 3D spatial audio with Howler.js
+- **Input Management**: Responsive keyboard and mouse controls
+- **Modular Design**: Clean, maintainable codebase with separation of concerns
 
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+ 
-- A modern browser with WebGPU support (Chrome 113+, Edge 113+)
+- npm or yarn package manager
 
 ### Installation
 
+1. Clone the repository:
+```bash
+git clone https://github.com/YodaGitMaster/Apocalypse-Run-.git
+cd Apocalypse-Run-
+```
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-### Development
-
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
-Open your browser to `http://localhost:3000`
+4. Open your browser and navigate to `http://localhost:3000`
 
-### Building
+### Build for Production
 
 ```bash
 npm run build
-npm run preview
 ```
 
-## Controls
+The built files will be in the `dist/` directory.
 
-- **Click**: Lock mouse pointer
-- **WASD**: Move around
-- **Mouse**: Look around
-- **Space**: Jump
-- **ESC**: Release mouse pointer
-
-## Architecture
+## 🏗️ Project Structure
 
 ```
-/src
-├── main.ts          # Game loop and initialization
-├── gpu.ts           # WebGPU device and context setup
-├── renderer.ts      # Render pipeline and draw calls
-├── camera.ts        # FPS camera with physics
-├── input.ts         # Keyboard and mouse handling
-├── geometry.ts      # Mesh creation utilities
-├── math/
-│   ├── vec3.ts      # 3D vector operations
-│   └── mat4.ts      # 4x4 matrix operations
-└── shaders/
-    └── standard.wgsl # Vertex and fragment shaders
+src/
+├── core/                 # Core game systems
+│   ├── ECSWorld.ts      # Entity Component System implementation
+│   ├── Game.ts          # Main game loop and state management
+│   ├── InputManager.ts  # Input handling and controls
+│   ├── PhysicsWorld.ts  # Physics simulation wrapper
+│   ├── PlayerController.ts # Player movement and camera
+│   └── Renderer.ts      # Three.js rendering system
+├── main.ts              # Application entry point
+└── style.css           # Global styles
 ```
 
-## WebGPU Support
+## 🎯 Core Systems
 
-This game requires WebGPU support. Check compatibility:
-- Chrome/Edge 113+ (stable)
-- Firefox: Behind flag (experimental)
-- Safari: In development
+### Entity Component System (ECS)
+- **Entities**: Game objects identified by unique IDs
+- **Components**: Data containers for entity properties
+- **Systems**: Logic processors that operate on entities with specific components
 
-## Next Steps
+### Physics System
+- Realistic 3D physics simulation
+- Collision detection and response
+- Rigid body dynamics
+- Constraint systems
 
-- [ ] Integrate Rapier physics engine
-- [ ] Implement ECS architecture
-- [ ] Add weapon systems
-- [ ] Create map loading
-- [ ] Add multiplayer networking
-- [ ] Implement game modes (Deathmatch, Team Deathmatch)
-- [ ] Add particle effects and post-processing
+### Rendering System
+- WebGL-based 3D rendering
+- Custom shader support
+- Lighting and shadow systems
+- Post-processing effects
 
-## Development Notes
+### Input System
+- Keyboard and mouse input handling
+- Configurable key bindings
+- Smooth camera controls
+- Responsive movement
 
-The project is structured for easy expansion:
-- Modular renderer supports multiple render passes
-- Input system ready for customizable key bindings  
-- Math library optimized for game performance
-- Shader system prepared for advanced effects
+## 🛠️ Development
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run typecheck` - Run TypeScript type checking
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Fix ESLint issues
+- `npm run format` - Format code with Prettier
+- `npm run test` - Run tests
+- `npm run test:ui` - Run tests with UI
+
+### Code Quality
+
+This project enforces strict code quality standards:
+
+- **TypeScript**: Strict type checking enabled
+- **ESLint**: Code linting with TypeScript support
+- **Prettier**: Consistent code formatting
+- **Husky**: Git hooks for pre-commit checks
+- **Lint-staged**: Run linters on staged files
+
+## 🎨 Graphics Features
+
+- **Real-time 3D Rendering**: WebGL-powered graphics
+- **Dynamic Lighting**: Realistic light and shadow systems
+- **Particle Effects**: Visual effects for explosions and impacts
+- **Post-processing**: Screen-space effects and filters
+- **Texture Mapping**: High-quality texture rendering
+- **Model Loading**: Support for 3D model formats
+
+## 🔊 Audio Features
+
+- **3D Spatial Audio**: Positional sound effects
+- **Dynamic Music**: Adaptive soundtrack system
+- **Sound Effects**: Weapon sounds, footsteps, and ambient audio
+- **Audio Occlusion**: Realistic sound propagation
+
+## 🎮 Controls
+
+- **WASD** - Movement
+- **Mouse** - Look around
+- **Space** - Jump
+- **Shift** - Run/Sprint
+- **Ctrl** - Crouch
+- **E** - Interact
+- **R** - Reload
+- **1-9** - Weapon selection
+- **F** - Flashlight
+- **Tab** - Scoreboard
+- **Esc** - Menu
+
+## 🔧 Configuration
+
+The game can be configured through various settings:
+
+- **Graphics**: Quality settings, resolution, fullscreen mode
+- **Audio**: Volume levels, audio device selection
+- **Controls**: Key bindings and sensitivity settings
+- **Gameplay**: Difficulty, game mode preferences
+
+## 📦 Dependencies
+
+### Core Dependencies
+- **Three.js** (^0.158.0) - 3D graphics library
+- **Rapier3D** (^0.13.0) - Physics engine
+- **Bitecs** (^0.3.40) - ECS framework
+- **Howler.js** (^2.2.4) - Audio library
+
+### Development Dependencies
+- **TypeScript** (^5.2.2) - Type system
+- **Vite** (^5.0.8) - Build tool and dev server
+- **ESLint** (^8.55.0) - Code linting
+- **Prettier** (^3.1.1) - Code formatting
+- **Vitest** (^1.0.4) - Testing framework
+
+## 🚀 Performance
+
+- **60 FPS Target**: Optimized for smooth gameplay
+- **Memory Management**: Efficient resource handling
+- **LOD System**: Level-of-detail for distant objects
+- **Frustum Culling**: Only render visible objects
+- **Instanced Rendering**: Efficient rendering of repeated objects
+
+## 🤝 Contributing
+
+This is a proprietary project. All rights reserved. See the COPYRIGHT file for detailed licensing information.
+
+## 📄 License
+
+Copyright (c) 2025 QuakeArena Development Team. All rights reserved.
+
+This software is proprietary and confidential. Unauthorized reproduction, distribution, or modification is strictly prohibited and will result in legal action.
+
+## 🔗 Links
+
+- [Three.js Documentation](https://threejs.org/docs/)
+- [Rapier3D Documentation](https://rapier.rs/docs/)
+- [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+- [Vite Documentation](https://vitejs.dev/guide/)
+
+---
+
+**Note**: This project is under active development. Features and APIs may change between versions.
