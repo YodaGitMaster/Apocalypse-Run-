@@ -35,3 +35,11 @@
 - **Game Flow**: Automatic detection within 2.0 units, overlay restart screen
 - **Performance**: Pulsing lights use requestAnimationFrame for smooth animation
 - **UX**: Click-to-restart keeps gameplay flow smooth and intuitive
+
+## Lootbox System Implementation (2025-09-21)
+- **Spawning**: 8-15 lootboxes per maze with smart distance-based placement
+- **Rarity System**: 4 tiers (Common 50%, Rare 30%, Epic 15%, Legendary 5%)
+- **Point Values**: 10/25/50/100 points for Common/Rare/Epic/Legendary
+- **Visual Design**: Rarity-colored boxes with glow effects and particle systems
+- **Collection Effects**: Burst particle animation with physics-based movement
+- **Performance**: Efficient geometry reuse and automatic cleanup on restart

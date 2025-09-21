@@ -71,9 +71,28 @@ interface ExitPointData {
 }
 ```
 
+### Lootbox System
+```typescript
+interface LootboxData {
+  id: string
+  position: THREE.Vector3
+  pointValue: number
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  collected: boolean
+}
+
+interface LootboxStats {
+  collected: number    // Number collected
+  total: number       // Total spawned
+  points: number      // Total points earned
+}
+```
+
 ## Current WebGL2 Implementation
 - Vertex format: position(3) + normal(3) + color(3) = 9 floats/vertex
 - Uniform: ViewProjection matrix + Model matrix
 - Simple Lambert lighting in fragment shader
 - Exit detection: 2.0 unit radius collision check
+- Lootbox detection: 1.2 unit radius collision check
 - Light animation: requestAnimationFrame pulsing at 0.003 time factor
+- Particle effects: Burst animation with gravity on collection

@@ -3,6 +3,7 @@ import { createWorld, IWorld } from 'bitecs';
 import * as THREE from 'three';
 import { ECSWorld } from './ECSWorld';
 import { InputManager } from './InputManager';
+import { LootboxManager } from './LootboxManager';
 import { MazeGenerator } from './MazeGenerator';
 import { PhysicsWorld } from './PhysicsWorld';
 import { PlayerController } from './PlayerController';
@@ -15,6 +16,7 @@ export class Game {
     private ecsWorld!: ECSWorld;
     private playerController!: PlayerController;
     private mazeGenerator!: MazeGenerator;
+    private lootboxManager!: LootboxManager;
     private world!: IWorld;
 
     private scene!: THREE.Scene;
@@ -72,6 +74,10 @@ export class Game {
 
         // Select exit point (must be done after spawn position is set)
         this.mazeGenerator.selectExitPoint();
+
+        // Initialize lootbox manager and spawn lootboxes
+        this.lootboxManager = new LootboxManager(this.scene, this.mazeGenerator);
+        this.lootboxManager.spawnLootboxes();
 
         // Add direction arrow to scene
         this.scene.add(this.playerController.getDirectionArrow());
@@ -162,6 +168,12 @@ export class Game {
         // Update player controller (handles camera and movement)
         this.playerController.update(deltaTime);
 
+        // Update lootboxes
+        this.lootboxManager.update(deltaTime);
+
+        // Check lootbox collisions
+        this.checkLootboxCollisions();
+
         // Check for game over condition (player reached exit)
         this.checkGameOver();
 
@@ -173,6 +185,15 @@ export class Game {
 
         // Update HUD
         this.updateHUD();
+    }
+
+    private checkLootboxCollisions(): void {
+        const playerPosition = this.playerController.getPosition();
+        const pointsGained = this.lootboxManager.checkCollisions(playerPosition);
+
+        if (pointsGained > 0) {
+            console.log(`💰 Gained ${pointsGained} points!`);
+        }
     }
 
     private checkGameOver(): void {
@@ -208,12 +229,27 @@ export class Game {
         title.style.marginBottom = '20px';
         title.style.textAlign = 'center';
 
+        const stats = this.lootboxManager.getCollectionStats();
+        const scoreText = document.createElement('p');
+        scoreText.textContent = `Final Score: ${stats.points} points`;
+        scoreText.style.color = '#ffdd44';
+        scoreText.style.fontSize = '1.5rem';
+        scoreText.style.marginBottom = '10px';
+
+        const lootboxText = document.createElement('p');
+        lootboxText.textContent = `Lootboxes Collected: ${stats.collected}/${stats.total}`;
+        lootboxText.style.color = '#aaaaaa';
+        lootboxText.style.fontSize = '1.1rem';
+        lootboxText.style.marginBottom = '20px';
+
         const instruction = document.createElement('p');
         instruction.textContent = 'Click to restart';
         instruction.style.color = '#ffffff';
         instruction.style.fontSize = '1.2rem';
 
         overlay.appendChild(title);
+        overlay.appendChild(scoreText);
+        overlay.appendChild(lootboxText);
         overlay.appendChild(instruction);
 
         // Add click handler to restart game
@@ -236,6 +272,9 @@ export class Game {
         // Reset game state
         this.gameOver = false;
 
+        // Reset lootbox manager
+        this.lootboxManager.reset();
+
         // Regenerate maze
         this.mazeGenerator.generateMaze();
 
@@ -246,6 +285,9 @@ export class Game {
         // Select new exit point
         this.mazeGenerator.selectExitPoint();
 
+        // Spawn new lootboxes
+        this.lootboxManager.spawnLootboxes();
+
         // Clear and recreate scene
         this.scene.clear();
         this.createMazeScene();
@@ -253,7 +295,7 @@ export class Game {
         // Re-add direction arrow
         this.scene.add(this.playerController.getDirectionArrow());
 
-        console.log('🔄 Game restarted with new maze');
+        console.log('🔄 Game restarted with new maze and lootboxes');
     }
 
     private updateHUD(): void {
@@ -261,8 +303,9 @@ export class Game {
         const positionElement = document.getElementById('position');
 
         if (fpsElement) {
-            // Simple FPS calculation (update every second)
-            fpsElement.textContent = '60'; // Placeholder - could add real FPS counter
+            // Display lootbox stats instead of FPS
+            const stats = this.lootboxManager.getCollectionStats();
+            fpsElement.textContent = `📦 ${stats.collected}/${stats.total} | 💰 ${stats.points} pts`;
         }
 
         if (positionElement) {
