@@ -3,7 +3,7 @@ import * as THREE from 'three';
 export class NavigationLine {
     private line: THREE.Line;
     private startTime: number;
-    private duration: number = 30000; // 30 seconds in milliseconds
+    private duration: number = 60000; // 60 seconds (1 minute) in milliseconds
     private isActive: boolean = false;
     private scene: THREE.Scene;
     private startPosition: THREE.Vector3;
@@ -57,7 +57,7 @@ export class NavigationLine {
         this.startTime = Date.now();
         this.scene.add(this.line);
 
-        console.log('🧭 Navigation line activated for 30 seconds');
+        console.log('🧭 Navigation line activated for 60 seconds (1 minute)');
     }
 
     public update(deltaTime: number): boolean {

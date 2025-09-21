@@ -717,43 +717,61 @@ export class MazeGenerator {
         return { width: this.width, height: this.height, cellSize: this.cellSize };
     }
 
-    public addStartAndExitLights(scene: THREE.Scene): { startLight: THREE.PointLight, exitLight: THREE.PointLight } {
+    public addStartAndExitLights(scene: THREE.Scene): { startLight: THREE.SpotLight, exitLight: THREE.SpotLight } {
         if (!this.spawnPosition || !this.exitPosition) {
             throw new Error('Both spawn and exit positions must be set before adding lights');
         }
 
-        // Create blue light at start position
-        const startLight = new THREE.PointLight(0x0088ff, 1.5, 8); // Bright blue
+        // Create blue spotlight at start position (pointing downward)
+        const startLight = new THREE.SpotLight(0x0088ff, 2.0, 6, Math.PI / 6, 0.3); // Bright blue, narrower cone
         startLight.position.set(
             this.spawnPosition.x,
-            this.wallHeight - 0.3, // Just below ceiling
+            this.wallHeight - 0.2, // Just below ceiling
+            this.spawnPosition.z
+        );
+        // Point the light downward
+        startLight.target.position.set(
+            this.spawnPosition.x,
+            0, // Ground level
             this.spawnPosition.z
         );
         startLight.castShadow = true;
         startLight.shadow.mapSize.width = 512;
         startLight.shadow.mapSize.height = 512;
+        startLight.shadow.camera.near = 0.1;
+        startLight.shadow.camera.far = 8;
         scene.add(startLight);
+        scene.add(startLight.target);
 
-        // Create red light at exit position
-        const exitLight = new THREE.PointLight(0xff0044, 1.5, 8); // Bright red
+        // Create red spotlight at exit position (pointing downward)
+        const exitLight = new THREE.SpotLight(0xff0044, 2.0, 6, Math.PI / 6, 0.3); // Bright red, narrower cone
         exitLight.position.set(
             this.exitPosition.x,
-            this.wallHeight - 0.3, // Just below ceiling
+            this.wallHeight - 0.2, // Just below ceiling
+            this.exitPosition.z
+        );
+        // Point the light downward
+        exitLight.target.position.set(
+            this.exitPosition.x,
+            0, // Ground level
             this.exitPosition.z
         );
         exitLight.castShadow = true;
         exitLight.shadow.mapSize.width = 512;
         exitLight.shadow.mapSize.height = 512;
+        exitLight.shadow.camera.near = 0.1;
+        exitLight.shadow.camera.far = 8;
         scene.add(exitLight);
+        scene.add(exitLight.target);
 
         // Add pulsing effect to both lights
         this.addLightPulsingEffect(startLight, exitLight);
 
-        console.log('💡 Added blue start light and red exit light');
+        console.log('💡 Added blue and red spotlights (downward-facing, no wall bleeding)');
         return { startLight, exitLight };
     }
 
-    private addLightPulsingEffect(startLight: THREE.PointLight, exitLight: THREE.PointLight): void {
+    private addLightPulsingEffect(startLight: THREE.SpotLight, exitLight: THREE.SpotLight): void {
         const originalStartIntensity = startLight.intensity;
         const originalExitIntensity = exitLight.intensity;
 

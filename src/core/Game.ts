@@ -424,7 +424,8 @@ export class Game {
 
             // Choose power icon based on power level
             let powerIcon = '🔋';
-            if (powerPercentage <= 20) powerIcon = '🪫';
+            if (powerPercentage > 100) powerIcon = '⚡'; // Overcharged state
+            else if (powerPercentage <= 20) powerIcon = '🪫';
             else if (powerPercentage <= 40) powerIcon = '🔋';
             else powerIcon = '🔋';
 

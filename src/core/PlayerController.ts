@@ -244,21 +244,21 @@ export class PlayerController {
     }
 
     private createDirectionArrow(): void {
-        // Create arrow geometry - larger, more visible triangle pointing forward
+        // Create arrow geometry - smaller, subtle triangle pointing forward
         const arrowGeometry = new THREE.BufferGeometry();
         const vertices = new Float32Array([
-            // Triangle pointing in -Z direction (forward in Three.js)
-            0.0, 0.0, -1.2,   // tip (forward)
-            -0.5, 0.0, 0.3,   // left back
-            0.5, 0.0, 0.3,    // right back
+            // Triangle pointing in -Z direction (forward in Three.js) - reduced size
+            0.0, 0.0, -0.6,   // tip (forward) - was -1.2
+            -0.25, 0.0, 0.15, // left back - was -0.5, 0.3
+            0.25, 0.0, 0.15,  // right back - was 0.5, 0.3
         ]);
         arrowGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
-        // Create semi-transparent material - temporarily very visible for debugging
+        // Create subtle, transparent material
         const arrowMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000, // Bright red color for visibility
+            color: 0x880000, // Darker red color (less intense)
             transparent: true,
-            opacity: 1.0, // Fully visible for testing
+            opacity: 0.4, // More transparent
             side: THREE.DoubleSide, // Visible from both sides
             depthTest: false, // Always visible, not occluded
             depthWrite: false, // Don't write to depth buffer
@@ -272,7 +272,7 @@ export class PlayerController {
     private updateDirectionArrow(): void {
         // Position arrow in front of the player, not directly underneath
         this.directionArrow.position.copy(this.camera.position);
-        this.directionArrow.position.y = this.groundY + 0.5; // Higher above ground for visibility
+        this.directionArrow.position.y = this.groundY + 0.1; // Much closer to floor
 
         // Move arrow forward in the body direction
         const forwardDistance = 2.0; // Distance in front of player
@@ -285,7 +285,7 @@ export class PlayerController {
 
         // Debug: Log arrow position occasionally
         if (Math.random() < 0.01) { // Log 1% of the time
-            console.log('Arrow position:', this.directionArrow.position);
+            console.log('Direction arrow (subtle):', this.directionArrow.position);
             console.log('Arrow rotation:', this.directionArrow.rotation.y);
             console.log('Body yaw:', this.bodyYaw);
         }

@@ -31,17 +31,23 @@
 
 ## Exit Point System Implementation (2025-09-21)
 - **Algorithm**: Distance-based selection from farthest 25% of spawn candidates
-- **Visual Cues**: Blue pulsing light at spawn, red pulsing light at exit
+- **Directional Lighting**: Blue and red SpotLights pointing downward (no wall bleeding)
+- **Focused Illumination**: 30-degree cone angle with 6-unit range for localized lighting
+- **Enhanced Shadows**: Proper shadow camera settings prevent light leakage through walls
 - **Game Flow**: Automatic detection within 2.0 units, overlay restart screen
 - **Performance**: Pulsing lights use requestAnimationFrame for smooth animation
 - **UX**: Click-to-restart keeps gameplay flow smooth and intuitive
 
 ## Lootbox System Implementation (2025-09-21)
-- **Spawning**: 10-15 lootboxes per maze with smart distance-based placement (increased)
+- **Balanced Rarity Distribution**: Controlled percentages for optimal gameplay balance
+- **Legendary**: Exactly 1 per game with fallback system (IDEAL: >60% from both start+end, FALLBACK: >50% from start OR end, GUARANTEED: last position)
+- **Epic**: Exactly 1 per game (IDEAL: >50% from start, GUARANTEED: last 4 positions if not placed)
+- **Rare**: Maximum 2 per game (IDEAL: >30% from start, GUARANTEED: at least 1 in last 3 positions)
+- **Common**: All remaining boxes, close to start point or fallback positions
+- **Spawning**: 10-15 lootboxes per maze with intelligent distribution
 - **Guaranteed Start**: Always places one lootbox in the player's starting room
 - **Grid Distribution**: 4x4 section-based placement prevents clustering across maze
 - **Spacing Algorithm**: 12-unit minimum distance between lootboxes for better spread
-- **Rarity System**: 4 tiers (Common 50%, Rare 30%, Epic 15%, Legendary 5%)
 - **Point Values**: 10/25/50/100 points for Common/Rare/Epic/Legendary
 - **Visual Design**: Rarity-colored boxes with glow effects and particle systems
 - **Collection Effects**: Burst particle animation with physics-based movement
@@ -50,10 +56,12 @@
 ## Navigation System (2025-09-21)
 - **Navigation Boxes**: Maximum 3 special diamond-shaped boxes per maze
 - **Distinctive Shape**: Octahedron geometry with cyan color and rotating rings
-- **Smart Placement**: 15-unit minimum distance from all other boxes and key points
-- **Exit Guidance**: 30-second animated line pointing directly to maze exit
+- **Strategic Placement**: Spawn 8-20 units near legendary boxes for maximum value
+- **Legendary Proximity**: Prioritizes placement around the most valuable lootboxes
+- **Extended Duration**: Navigation lines now last 60 seconds (1 minute) instead of 30
+- **Exit Guidance**: 60-second animated line pointing directly to maze exit
 - **Visual Effects**: Color-shifting pulsing line with arc trajectory for visibility
-- **Automatic Cleanup**: Lines expire after 30 seconds and are removed from scene
+- **Automatic Cleanup**: Lines expire after 60 seconds and are removed from scene
 - **Debug Integration**: Navigation boxes appear as cyan markers in debug mode
 - **Strategic Value**: Provides temporary navigation aid for lost players
 
@@ -66,7 +74,7 @@
 - **Extended Durations**: L1=12min, L2=5min, L3=3min, L4=2min, L5=1min on full battery
 - **Tiered Flashlight Consumption**: L1 low drain (5/s), L2-3 medium drain (20-33/s), L4-5 high drain (30-60/s)
 - **Dynamic Consumption**: Real-time adjustment when flashlight level changes
-- **Rebalanced Charges**: Lootboxes provide 180-1080 power units (3-18% of battery)
+- **Premium Energy Rewards**: Lootboxes provide 1080-6000 power units (18-100%+ of battery), with legendary boxes capable of overcharging beyond max capacity
 - **Strategic Gameplay**: Higher flashlight levels require frequent lootbox collection
 - **TRUE Infinite Standby**: Battery never drains when flashlight is off (bug fixed)
 - **Detailed Logging**: Console logs track intensity changes and consumption for debugging

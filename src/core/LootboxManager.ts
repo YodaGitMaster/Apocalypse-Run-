@@ -48,7 +48,7 @@ export class LootboxManager {
 
         for (let i = 0; i < lootboxCount; i++) {
             const position = spawnPositions[i];
-            const rarity = this.selectRarity();
+            const rarity = this.selectRarityByDistance(position, spawnPositions);
             const pointValue = this.getPointValueForRarity(rarity);
 
             const lootboxData: LootboxData = {
@@ -282,6 +282,115 @@ export class LootboxManager {
         return 'common'; // Fallback
     }
 
+    private selectRarityByDistance(position: THREE.Vector3, allPositions: THREE.Vector3[]): 'common' | 'rare' | 'epic' | 'legendary' {
+        const spawnPosition = this.mazeGenerator.getSpawnPosition();
+        const exitPosition = this.mazeGenerator.getExitPosition();
+
+        if (!spawnPosition || !exitPosition) {
+            return this.selectRarity(); // Fallback to random if positions not available
+        }
+
+        // Calculate distances
+        const distanceFromStart = position.distanceTo(spawnPosition);
+        const distanceFromEnd = position.distanceTo(exitPosition);
+
+        // Calculate maze dimensions for reference
+        const dimensions = this.mazeGenerator.getDimensions();
+        const maxPossibleDistance = Math.sqrt(
+            (dimensions.width * dimensions.cellSize) ** 2 +
+            (dimensions.height * dimensions.cellSize) ** 2
+        );
+
+        // Normalize distances (0-1 scale)
+        const normalizedDistanceFromStart = distanceFromStart / maxPossibleDistance;
+        const normalizedDistanceFromEnd = distanceFromEnd / maxPossibleDistance;
+
+        // Count existing rarities by tracking what we've already assigned
+        const currentIndex = allPositions.indexOf(position);
+
+        // Use a more reliable counting method by checking existing lootboxes
+        let legendaryCount = 0;
+        let epicCount = 0;
+        let rareCount = 0;
+
+        // Count rarities from already spawned lootboxes
+        for (const lootbox of this.lootboxes.values()) {
+            const rarity = lootbox.getRarity();
+            if (rarity === 'legendary') legendaryCount++;
+            else if (rarity === 'epic') epicCount++;
+            else if (rarity === 'rare') rareCount++;
+        }
+
+        // LEGENDARY: Exactly 1 per game - guarantee placement with fallback criteria
+        if (legendaryCount === 0) {
+            // Primary criteria: Far from both start AND end (ideal placement)
+            if (normalizedDistanceFromStart > 0.6 && normalizedDistanceFromEnd > 0.6) {
+                console.log(`📦 LEGENDARY lootbox placed at IDEAL distance ${distanceFromStart.toFixed(1)} from start, ${distanceFromEnd.toFixed(1)} from end`);
+                return 'legendary';
+            }
+            // Fallback criteria 1: Far from start OR far from end (if ideal not possible)
+            else if (normalizedDistanceFromStart > 0.5 || normalizedDistanceFromEnd > 0.5) {
+                // Only use fallback for the last few positions to ensure we try ideal placement first
+                const remainingPositions = allPositions.length - currentIndex;
+                if (remainingPositions <= 3) { // Last 3 positions, use fallback
+                    console.log(`📦 LEGENDARY lootbox placed at FALLBACK distance ${distanceFromStart.toFixed(1)} from start, ${distanceFromEnd.toFixed(1)} from end`);
+                    return 'legendary';
+                }
+            }
+            // Final fallback: Guarantee legendary on the very last position if not placed yet
+            else if (currentIndex === allPositions.length - 1) {
+                console.log(`📦 LEGENDARY lootbox GUARANTEED on last position at distance ${distanceFromStart.toFixed(1)} from start, ${distanceFromEnd.toFixed(1)} from end`);
+                return 'legendary';
+            }
+        }
+
+        // Log if legendary limit already reached
+        if (legendaryCount >= 1) {
+            console.log(`📦 Legendary placement skipped - limit reached (${legendaryCount}/1)`);
+        }
+
+        // EPIC: Maximum 1 per game, must be far from start
+        if (epicCount === 0) {
+            // Primary criteria: Far from start
+            if (normalizedDistanceFromStart > 0.5 && allPositions.length >= 10) {
+                console.log(`📦 EPIC lootbox placed (1/1 MAX) at distance ${distanceFromStart.toFixed(1)} from start, ${distanceFromEnd.toFixed(1)} from end`);
+                return 'epic';
+            }
+            // Guarantee epic on one of the last few positions if not placed yet
+            else if (currentIndex >= allPositions.length - 4) {
+                console.log(`📦 EPIC lootbox GUARANTEED (1/1 MAX) at distance ${distanceFromStart.toFixed(1)} from start, ${distanceFromEnd.toFixed(1)} from end`);
+                return 'epic';
+            }
+        }
+
+        // Log if epic limit already reached
+        if (epicCount >= 1 && normalizedDistanceFromStart > 0.5) {
+            console.log(`📦 Epic placement skipped - limit reached (${epicCount}/1)`);
+        }
+
+        // RARE: Maximum 2 per game, moderate distance from start
+        if (rareCount < 2) {
+            // Primary criteria: Moderate distance from start
+            if (normalizedDistanceFromStart > 0.3) {
+                console.log(`📦 RARE lootbox placed (${rareCount + 1}/2 MAX) at distance ${distanceFromStart.toFixed(1)} from start`);
+                return 'rare';
+            }
+            // Guarantee at least 1 rare in the last few positions if none placed yet
+            else if (rareCount === 0 && currentIndex >= allPositions.length - 3) {
+                console.log(`📦 RARE lootbox GUARANTEED (${rareCount + 1}/2 MAX) at distance ${distanceFromStart.toFixed(1)} from start`);
+                return 'rare';
+            }
+        }
+
+        // Log if rare limit already reached
+        if (rareCount >= 2 && normalizedDistanceFromStart > 0.3) {
+            console.log(`📦 Rare placement skipped - limit reached (${rareCount}/2)`);
+        }
+
+        // COMMON: All remaining boxes (about 75%)
+        return 'common';
+    }
+
     private getPointValueForRarity(rarity: 'common' | 'rare' | 'epic' | 'legendary'): number {
         switch (rarity) {
             case 'common': return 10;
@@ -464,10 +573,19 @@ export class LootboxManager {
         // Clear existing navigation boxes
         this.clearNavigationBoxes();
 
-        // Get all existing positions (lootboxes)
+        // Find legendary lootbox positions to spawn navigation boxes near them
+        const legendaryPositions: THREE.Vector3[] = [];
         const existingPositions: THREE.Vector3[] = [];
+
         for (const lootbox of this.lootboxes.values()) {
-            existingPositions.push(lootbox.getMesh().position.clone());
+            const position = lootbox.getMesh().position.clone();
+            existingPositions.push(position);
+
+            // Collect legendary positions
+            if (lootbox.getRarity() === 'legendary') {
+                legendaryPositions.push(position);
+                console.log(`🧭 Found legendary box at ${position.x.toFixed(1)}, ${position.z.toFixed(1)} - will spawn navigation boxes nearby`);
+            }
         }
 
         const spawnPosition = this.mazeGenerator.getSpawnPosition();
@@ -476,8 +594,8 @@ export class LootboxManager {
         if (spawnPosition) existingPositions.push(spawnPosition);
         if (exitPosition) existingPositions.push(exitPosition);
 
-        // Generate positions for navigation boxes
-        const navPositions = this.generateNavigationBoxPositions(existingPositions);
+        // Generate positions for navigation boxes near legendary boxes
+        const navPositions = this.generateNavigationBoxPositions(existingPositions, legendaryPositions);
 
         navPositions.forEach((position, index) => {
             const navBoxData: NavigationBoxData = {
@@ -502,7 +620,7 @@ export class LootboxManager {
         console.log(`🧭 Spawned ${this.navigationBoxes.size} navigation boxes`);
     }
 
-    private generateNavigationBoxPositions(existingPositions: THREE.Vector3[]): THREE.Vector3[] {
+    private generateNavigationBoxPositions(existingPositions: THREE.Vector3[], legendaryPositions: THREE.Vector3[] = []): THREE.Vector3[] {
         const positions: THREE.Vector3[] = [];
         const cells = this.mazeGenerator.getCells();
         const dimensions = this.mazeGenerator.getDimensions();
@@ -513,31 +631,80 @@ export class LootboxManager {
             let attempts = 0;
             let validPosition: THREE.Vector3 | null = null;
 
-            while (attempts < maxAttempts && !validPosition) {
-                // Pick a random floor cell
-                const x = Math.floor(Math.random() * dimensions.width);
-                const z = Math.floor(Math.random() * dimensions.height);
-                const cell = cells[x][z];
+            // Try to spawn near legendary boxes first
+            if (legendaryPositions.length > 0 && i < legendaryPositions.length) {
+                const legendaryPos = legendaryPositions[i];
+                console.log(`🧭 Attempting to spawn navigation box ${i + 1} near legendary at ${legendaryPos.x.toFixed(1)}, ${legendaryPos.z.toFixed(1)}`);
 
-                if (cell && (cell.type === 'room' || cell.type === 'floor')) {
-                    const worldX = (x - dimensions.width / 2) * cellSize;
-                    const worldZ = (z - dimensions.height / 2) * cellSize;
-                    const candidatePosition = new THREE.Vector3(worldX, 1.0, worldZ);
+                while (attempts < maxAttempts && !validPosition) {
+                    // Generate position in a radius around the legendary box
+                    const radius = 8 + Math.random() * 12; // 8-20 units from legendary
+                    const angle = Math.random() * Math.PI * 2;
+                    const offsetX = Math.cos(angle) * radius;
+                    const offsetZ = Math.sin(angle) * radius;
 
-                    // Check minimum distance from all existing positions
-                    let validDistance = true;
-                    for (const existingPos of [...existingPositions, ...positions]) {
-                        if (candidatePosition.distanceTo(existingPos) < this.navigationBoxSpacing) {
-                            validDistance = false;
-                            break;
+                    const candidateX = legendaryPos.x + offsetX;
+                    const candidateZ = legendaryPos.z + offsetZ;
+
+                    // Convert to cell coordinates to check if valid
+                    const cellX = Math.round((candidateX / cellSize) + (dimensions.width / 2));
+                    const cellZ = Math.round((candidateZ / cellSize) + (dimensions.height / 2));
+
+                    if (cellX >= 0 && cellX < dimensions.width && cellZ >= 0 && cellZ < dimensions.height) {
+                        const cell = cells[cellX][cellZ];
+
+                        if (cell && (cell.type === 'room' || cell.type === 'floor')) {
+                            const candidatePosition = new THREE.Vector3(candidateX, 1.0, candidateZ);
+
+                            // Check minimum distance from all existing positions
+                            let validDistance = true;
+                            for (const existingPos of [...existingPositions, ...positions]) {
+                                if (candidatePosition.distanceTo(existingPos) < this.navigationBoxSpacing) {
+                                    validDistance = false;
+                                    break;
+                                }
+                            }
+
+                            if (validDistance) {
+                                validPosition = candidatePosition;
+                                console.log(`🧭 Navigation box ${i + 1} placed near legendary at distance ${candidatePosition.distanceTo(legendaryPos).toFixed(1)}`);
+                            }
                         }
                     }
-
-                    if (validDistance) {
-                        validPosition = candidatePosition;
-                    }
+                    attempts++;
                 }
-                attempts++;
+            }
+
+            // Fallback to random placement if near-legendary failed
+            if (!validPosition) {
+                attempts = 0;
+                while (attempts < maxAttempts && !validPosition) {
+                    // Pick a random floor cell
+                    const x = Math.floor(Math.random() * dimensions.width);
+                    const z = Math.floor(Math.random() * dimensions.height);
+                    const cell = cells[x][z];
+
+                    if (cell && (cell.type === 'room' || cell.type === 'floor')) {
+                        const worldX = (x - dimensions.width / 2) * cellSize;
+                        const worldZ = (z - dimensions.height / 2) * cellSize;
+                        const candidatePosition = new THREE.Vector3(worldX, 1.0, worldZ);
+
+                        // Check minimum distance from all existing positions
+                        let validDistance = true;
+                        for (const existingPos of [...existingPositions, ...positions]) {
+                            if (candidatePosition.distanceTo(existingPos) < this.navigationBoxSpacing) {
+                                validDistance = false;
+                                break;
+                            }
+                        }
+
+                        if (validDistance) {
+                            validPosition = candidatePosition;
+                            console.log(`🧭 Navigation box ${i + 1} placed at random fallback position`);
+                        }
+                    }
+                    attempts++;
+                }
             }
 
             if (validPosition) {
@@ -580,7 +747,7 @@ export class LootboxManager {
                         this.navigationLines.push(line);
 
                         // Play collection sound
-                        console.log('🧭 Navigation box collected! Line to exit activated for 30 seconds.');
+                        console.log('🧭 Navigation box collected! Line to exit activated for 60 seconds (1 minute).');
                     }
                 }
             }

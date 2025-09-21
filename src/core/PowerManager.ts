@@ -41,12 +41,12 @@ export class PowerManager {
         5: 60     // Level 5: 1 minute on full battery
     };
 
-    // Charge values from lootboxes by rarity (increased for larger battery)
+    // Charge values from lootboxes by rarity (custom high values for rewarding gameplay)
     private readonly chargeValues = {
-        common: 180,     // 180 power units (3% of max battery)
-        rare: 360,       // 360 power units (6% of max battery)
-        epic: 720,       // 720 power units (12% of max battery)
-        legendary: 1080  // 1080 power units (18% of max battery)
+        common: 1080,    // 1080 power units (18% of max battery)
+        rare: 1800,      // 1800 power units (30% of max battery)
+        epic: 2200,      // 2200 power units (37% of max battery)
+        legendary: 6000  // 6000 power units (100% of max battery) - can exceed max!
     };
 
     constructor(initialPower: number = 6000) {
@@ -214,10 +214,16 @@ export class PowerManager {
         const chargeAmount = this.chargeValues[rarity];
         const oldPower = this.currentPower;
 
-        this.currentPower = Math.min(this.maxPower, this.currentPower + chargeAmount);
+        // Allow legendary boxes to exceed max capacity, cap others at max
+        if (rarity === 'legendary') {
+            this.currentPower = this.currentPower + chargeAmount; // No cap for legendary
+        } else {
+            this.currentPower = Math.min(this.maxPower, this.currentPower + chargeAmount); // Cap at max for others
+        }
+
         const actualCharge = this.currentPower - oldPower;
 
-        console.log(`🔋 Added ${actualCharge} power from ${rarity} lootbox (${this.currentPower}/${this.maxPower})`);
+        console.log(`🔋 Added ${actualCharge} power from ${rarity} lootbox (${this.currentPower}/${this.maxPower}) ${this.currentPower > this.maxPower ? '⚡ OVERCHARGED!' : ''}`);
 
         // Create visual effect for power gain
         this.createPowerGainEffect(actualCharge);
