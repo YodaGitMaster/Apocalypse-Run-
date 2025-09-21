@@ -1,0 +1,193 @@
+---
+# File: .cursor/rules/css-single-issue-fix.mdc
+# Linear, gated, single CSS issue resolution process.
+name: css-single-issue-fix
+globs: ["*"]
+alwaysApply: false
+---
+
+meta:
+  name: "CSS Single-Issue Fix"
+  version: "1.4.0"
+
+principle: |
+  The process is STRICTLY LINEAR. Complete each numbered step fully before moving to the next.
+  Never skip, merge, reorder, or backfill steps. Await user acknowledgment where specified.
+
+userInputTemplate: |
+  Problem: <brief>
+  Current: |
+    <CSS/HTML snippet>
+  Goal: <desired visual/behavior result>
+  Constraints: <optional>
+  Context: <optional>
+
+missingInfo:
+  snippet: "Provide the Current code snippet."
+  goal: "Clarify the Goal."
+  multi: "Submit ONE issue only."
+
+bestPracticesCSS: |
+  Reuse Project Style & Feel:
+    - Always prefer existing design tokens / CSS variables (colors, spacing, typography scale, radii, shadows).
+    - Match existing naming patterns; do not invent new BEM/utility conventions mid-stream.
+    - Before adding a new class, confirm no existing utility / component class accomplishes the goal.
+    - Keep visual language coherent: spacing multiples, consistent font sizes, color contrast AA minimum.
+  Specificity & Cascade:
+    - Keep selectors shallow (≤ 2 levels). Prefer single class selectors.
+    - Avoid IDs, element+class overqualification, or chaining multiple classes unless required.
+    - No !important unless a legacy third-party style cannot be otherwise isolated; justify if used.
+  Tokens & Values:
+    - Replace hard-coded hex/px with tokens when an equivalent exists; if missing, leave literal + comment "Consider token".
+    - Use rem for font sizing & scalable spacing; px only for hairlines (≤1px) or device-pixel-precise borders.
+  Layout & Alignment:
+    - Prefer flex/grid over negative margins or absolute positioning hacks.
+    - width:100% inside a max-width wrapper will not exceed the wrapper (be mindful when addressing width issues).
+  Performance:
+    - Minimize reflow triggers: adjust transform/opacity for animations, avoid animating layout properties when possible.
+    - Remove redundant or overridden declarations.
+  Accessibility:
+    - Preserve focus indicators; never remove outline without replacement.
+    - Maintain contrast ratios (text/interactive ≥ 4.5:1 unless large text).
+  Responsiveness:
+    - Mobile-first; use min-width media queries; only override changed properties.
+  Consistency Checks (apply every patch):
+    - Spacing increments align with scale.
+    - Typography steps use defined scale.
+    - Colors are from existing palette.
+    - Border radius and shadows match token set.
+  Documentation:
+    - Comment unconventional decisions (e.g., required specificity bump) briefly.
+  Avoid:
+    - Deep nesting in preprocessors.
+    - Duplicating existing utility behavior.
+    - Side-effect refactors in a single-issue patch.
+
+linearSteps:
+  "Step 1 - Intake":
+    action: "Receive user template. If snippet or goal missing, request ONLY that item, halt."
+    output: "Acknowledgment or targeted request."
+  "Step 2 - Restated Problem":
+    action: "Rephrase in ONE sentence beginning 'Problem: ...'."
+    output: "Single line."
+  "Step 3 - Environment / Structure Notes":
+    action: "List ONLY parent/wrapper constraints directly affecting layout (e.g., max-width, overflow, flex/grid context)."
+    output: "Bullet list (max 5). If unknown, state 'None observed'."
+  "Step 4 - Relevant Code Extraction":
+    action: "Extract minimal selectors & declarations influencing issue (no unrelated lines)."
+    output: "Code block."
+  "Step 5 - Root Cause Hypothesis":
+    action: "State primary root cause + up to 2 secondary contributing factors."
+    output: "Bullets."
+  "Step 6 - Diagram Overview":
+    action: "Decide which diagrams ADD clarity (Flowchart / Layout / Sequence) OR 'None'."
+    output: "List chosen or 'None'."
+  "Step 7 - (If Chosen) Produce Diagrams":
+    action: "Render only selected Mermaid placeholders populated with current understanding."
+    output: "Mermaid blocks OR skip."
+  "Step 8 - Patch Plan (No Code Yet)":
+    action: "Describe planned minimal changes (property-level) referencing existing tokens/utilities; note any assumptions."
+    output: "Numbered list of planned edits."
+  "Step 9 - Introspection":
+    action: "Bias check & challenge assumptions."
+    template: |
+      - Hypothesis restated
+      - Biases considered
+      - Counterpoints
+      - Adjusted plan (if changed)
+    output: "Filled template."
+  "Step 10 - User Approval Gate":
+    action: "Ask user: 'Approve patch plan? (yes / modify)' Stop until approval."
+    output: "Question only."
+  "Step 11 - Patch Diff":
+    precondition: "Explicit user approval."
+    action: "Provide unified diff or inline /* PATCH */ with ONLY required minimal edits (following bestPracticesCSS)."
+    rules:
+      - "No !important unless justified with one-line rationale."
+      - "Do not raise specificity unless unavoidable (justify)."
+      - "Reuse existing var(--*) tokens; if absent, keep literal + comment 'Consider token'."
+      - "Touch minimum lines; no formatting churn."
+      - "No new class if existing one suffices."
+    output: "Diff block."
+  "Step 12 - Rationale":
+    action: "Map each change line -> root cause element."
+    output: "Bulleted mapping."
+  "Step 13 - Style Consistency Check":
+    checklist: |
+      - [ ] Existing variables/tokens used
+      - [ ] Spacing scale respected
+      - [ ] Typography scale respected
+      - [ ] Colors already present in project
+      - [ ] No redundant new class
+      - [ ] Specificity unchanged or reduced
+      - [ ] No !important added (or justified)
+    action: "Mark each item [x] or explain deviation."
+    output: "Checklist with marks."
+  "Step 14 - Test Checklist":
+    template: |
+      - [ ] Visual issue fixed
+      - [ ] No nearby unintended shifts
+      - [ ] Accessibility intact (focus/contrast)
+      - [ ] Chromium / Firefox / Safari OK
+      - [ ] Responsive breakpoints OK
+      - [ ] Style/feel consistent
+      - [ ] No regression in related components
+    action: "Present unchanged template (user executes tests)."
+    output: "Checklist."
+  "Step 15 - Optional Improvement":
+    action: "Offer ONE clearly beneficial optional enhancement OR 'None'."
+    output: "Single line."
+  "Step 16 - Completion Statement":
+    action: "State success definition satisfaction or note outstanding risk."
+    output: "'Process complete' sentence."
+
+introspectionStepTemplate: |
+  - Hypothesis restated: <text>
+  - Biases considered: <confirmation / anchoring / sunk cost / availability / other>
+  - Counterpoints: <what could disprove?>
+  - Adjusted plan: <changes or 'None'>
+
+diagrams:
+  selectionCriteria: |
+    Use diagrams ONLY if structural or dynamic flow knowledge reduces ambiguity.
+  placeholders:
+    flowchart: |
+      ```mermaid
+      flowchart LR
+        P[Problem] --> A[Analysis]
+        A --> R[Root Cause]
+        R --> PP[Patch Plan]
+        PP --> T[Test]
+      ```
+    layout: |
+      ```mermaid
+      graph TD
+        Wrapper --> Container
+        Container --> Target
+      ```
+    sequence: |
+      ```mermaid
+      sequenceDiagram
+        participant U as User
+        participant C as Component
+        participant S as Styles
+        U->>C: Interaction
+        C->>S: Class change
+        S-->>U: Updated layout
+      ```
+
+assumptionsPolicy: "Prefix guesses with 'Assumption:'"
+
+prohibited:
+  - "Jumping ahead of linearSteps."
+  - "Combining multiple issues."
+  - "Excessive refactor beyond minimal fix."
+  - "!important (unless justified)."
+  - "Adding new design tokens without note."
+  - "Unnecessary new classes/utilities."
+
+successDefinition: |
+  Root cause addressed; minimal diff; no new specificity/accessibility regressions; style/feel preserved; bestPracticesCSS followed.
+
+failureHandling: |
+  If post-patch user reports issue persists: Restart at Step 3 with updated observations; never skip steps.

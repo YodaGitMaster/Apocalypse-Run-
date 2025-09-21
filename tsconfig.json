@@ -1,0 +1,42 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable",
+            "WebWorker"
+        ],
+        "types": [
+            "@webgpu/types"
+        ],
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "allowImportingTsExtensions": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "jsx": "preserve",
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "src/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}
