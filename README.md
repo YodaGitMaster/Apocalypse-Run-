@@ -1,4 +1,4 @@
-# QuakeArena
+# Apocalypse Run
 
 A modern 3D first-person shooter game built with TypeScript, Three.js, and Rapier3D physics engine. This project implements an Entity Component System (ECS) architecture for optimal performance and maintainability.
 
@@ -180,7 +180,7 @@ This is a proprietary project. All rights reserved. See the COPYRIGHT file for d
 
 ## 📄 License
 
-Copyright (c) 2025 QuakeArena Development Team. All rights reserved.
+Copyright (c) 2025 Apocalypse Run Development Team. All rights reserved.
 
 This software is proprietary and confidential. Unauthorized reproduction, distribution, or modification is strictly prohibited and will result in legal action.
 

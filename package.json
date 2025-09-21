@@ -1,7 +1,7 @@
 {
-    "name": "quake-arena",
+    "name": "apocalypse-run",
     "version": "1.0.0",
-    "description": "Quake Arena-style FPS game with Three.js, Rapier3D, and ECS",
+    "description": "Apocalypse Run - 3D FPS game with Three.js, Rapier3D, and ECS",
     "type": "module",
     "main": "dist/main.js",
     "scripts": {
@@ -59,8 +59,9 @@
         "three.js",
         "webgl",
         "typescript",
-        "quake"
+        "apocalypse-run"
     ],
     "author": "",
     "license": "MIT"
 }
+
